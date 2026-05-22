@@ -1,0 +1,24 @@
+# Minimal OpenClaw config for the AaaS demo.
+# Just enough to enable the OpenAI-compatible /v1/chat/completions endpoint.
+
+gateway:
+  mode: local
+  http:
+    enabled: true
+    bind: lan
+  openaiCompat:
+    enabled: true
+  auth:
+    bearer:
+      tokens:
+        - "internal-aaas-to-openclaw-token-change-me"
+
+agents:
+  defaults:
+    workspace: /workspaces
+
+models:
+  providers:
+    openai:
+      baseUrl: "http://mock-llm:9001/v1"
+      apiKey: "mock-key-not-used"

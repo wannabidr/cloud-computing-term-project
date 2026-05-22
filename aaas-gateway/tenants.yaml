@@ -1,0 +1,30 @@
+# Multi-tenant registry for the AaaS Gateway.
+# Loaded once on server start. Values here are server-side truth;
+# clients can NEVER override workspace_path or auth_profile_id.
+#
+# api_token   : Bearer token clients send in `Authorization: Bearer <token>`.
+# workspace_path : Absolute path INSIDE the gateway container that maps to the
+#                  user's workspace on the host. OpenClaw's sandbox will receive
+#                  the same path via the X-Aaas-Workspace header.
+# auth_profile_id: ID of a model-auth profile pre-registered in OpenClaw.
+# allowed_agents : Whitelist of agent IDs this user may invoke.
+
+users:
+  - id: userA
+    api_token: "aaas_demo_token_userA_change_me"
+    workspace_path: "/workspaces/userA"
+    auth_profile_id: "profile-userA"
+    allowed_agents:
+      - openclaw  # 임시 추가, 지금은 동작 안 함
+      - gpt-5.4-mini
+      - file-summarizer
+      - shell-runner
+
+  - id: userB
+    api_token: "aaas_demo_token_userB_change_me"
+    workspace_path: "/workspaces/userB"
+    auth_profile_id: "profile-userB"
+    allowed_agents:
+      - openclaw # 임시 추가, 지금은 동작 안 함
+      - gpt-5.4-mini
+      - file-summarizer
