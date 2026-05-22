@@ -1,0 +1,3 @@
+I am B.
+This file belongs to userB's workspace.
+If you can read this, the tenant routing worked correctly.

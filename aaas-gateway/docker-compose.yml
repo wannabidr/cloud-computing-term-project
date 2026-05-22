@@ -1,0 +1,104 @@
+# Local-only docker-compose for the AaaS demo.
+#
+# Three services:
+#   1. mock-llm   - OpenAI-compatible Mock LLM (port 9001)
+#   2. openclaw   - the cloned OpenClaw repo, built from ../openclaw
+#   3. gateway    - this AaaS gateway (port 8080, the only port the user hits)
+#
+# Mount layout (important for tenant isolation):
+#   - ./workspaces        -> /workspaces (read-write)  : user workspaces
+#   - ./tenants.yaml      -> /app/tenants.yaml (RO)    : tenant registry
+#   - ./logs              -> /app/logs                 : audit + container logs
+#   - /var/run/docker.sock-> /var/run/docker.sock      : OpenClaw uses Docker
+#     (only mounted into the openclaw container — NEVER into the gateway)
+#
+# NOTE: You must clone OpenClaw next to this folder so that ../openclaw exists.
+# See SETUP_GUIDE.md step 1.
+
+services:
+  mock-llm:
+    build:
+      context: ./mock-llm
+    container_name: aaas-mock-llm
+    ports:
+      - "9001:9001"
+    env_file:
+      - .env
+    environment:
+      MOCK_LLM_HOST: "0.0.0.0"
+      MOCK_LLM_PORT: "9001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9001/healthz"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  openclaw:
+    # Build from the OpenClaw repo you cloned alongside this project.
+    # If OpenClaw ships a published image, you can replace `build:` with `image:` instead.
+    build:
+      context: ../openclaw
+    container_name: aaas-openclaw
+    depends_on:
+      mock-llm:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Route OpenClaw's model client to the Mock LLM during development.
+      OPENAI_API_BASE: "https://api.openai.com/v1"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # OpenClaw's sandbox path for user workspaces. Must match WORKSPACE_ROOT
+      # in the gateway and the host-side bind mount below.
+      # `agent-scope-config.ts::resolveAaasWorkspaceRoot` reads this env var
+      # to validate the AaaS-provided workspace path (see newpatch.md Fix 2).
+      OPENCLAW_WORKSPACE_ROOT: "/workspaces"
+      # OpenClaw OpenAI-compatible Gateway port.
+      # Place the AaaS tool-call log in the shared logs volume so the gateway,
+      # OpenClaw, and the host all see the same path.
+      OPENCLAW_AAAS_TOOLS_LOG_FILE: "/app/logs/openclaw-tools.jsonl"
+      OPENCLAW_GATEWAY_TOKEN: "internal-aaas-to-openclaw-token-change-me"
+      # OPENCLAW_BIND: "0.0.0.0"
+    command: ["node", "openclaw.mjs", "gateway", "--allow-unconfigured", "--bind", "lan"]
+    ports:
+      - "18789:18789"
+    volumes:
+      # Same workspace root the gateway sees, so paths line up perfectly.
+      - ./workspaces:/workspaces
+      # Shared log volume — tool-call log written here lands next to
+      # requests.jsonl/containers.jsonl written by the gateway.
+      - ./logs:/app/logs
+      # Docker socket so OpenClaw can launch sandbox containers.
+      # SECURITY: only OpenClaw needs this — never give it to the gateway.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./openclaw-config.yaml:/app/openclaw-config.yaml:ro
+
+  gateway:
+    build:
+      context: .
+    container_name: aaas-gateway
+    depends_on:
+      openclaw:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      GATEWAY_HOST: "0.0.0.0"
+      GATEWAY_PORT: "8080"
+      LOG_LEVEL: "info"
+      TENANTS_FILE: "/app/tenants.yaml"
+      LOGS_DIR: "/app/logs"
+      OPENCLAW_BASE_URL: "http://openclaw:18789" # 나중 OpenClaw 통합 시 변경 필요
+      OPENCLAW_TIMEOUT_MS: "120000"
+      WORKSPACE_ROOT: "/workspaces"
+      MOCK_LLM_BASE_URL: "http://mock-llm:9001/v1"
+      BACKEND_MODE: "auto"
+      OPENAI_DEFAULT_MODEL: "gpt-5.4-mini"
+      OPENAI_API_BASE: "https://api.openai.com/v1"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENCLAW_TOKEN: "internal-aaas-to-openclaw-token-change-me"
+    volumes:
+      - ./tenants.yaml:/app/tenants.yaml:ro
+      - ./logs:/app/logs
