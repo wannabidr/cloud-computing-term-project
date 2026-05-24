@@ -14,7 +14,9 @@
 #
 # NOTE: You must clone OpenClaw next to this folder so that ../openclaw exists.
 # See SETUP_GUIDE.md step 1.
-
+secrets:
+   openclaw_token:
+     file: ./secrets/openclaw_token.txt
 services:
   mock-llm:
     build:
@@ -36,6 +38,8 @@ services:
   openclaw:
     # Build from the OpenClaw repo you cloned alongside this project.
     # If OpenClaw ships a published image, you can replace `build:` with `image:` instead.
+    secrets:
+      - openclaw_token
     build:
       context: ../openclaw
     container_name: aaas-openclaw
@@ -57,11 +61,14 @@ services:
       # Place the AaaS tool-call log in the shared logs volume so the gateway,
       # OpenClaw, and the host all see the same path.
       OPENCLAW_AAAS_TOOLS_LOG_FILE: "/app/logs/openclaw-tools.jsonl"
-      OPENCLAW_GATEWAY_TOKEN: "internal-aaas-to-openclaw-token-change-me"
+      OPENCLAW_GATEWAY_TOKEN_FILE: /run/secrets/openclaw_token
       # OPENCLAW_BIND: "0.0.0.0"
-    command: ["node", "openclaw.mjs", "gateway", "--allow-unconfigured", "--bind", "lan"]
+    command:
+      - "sh"
+      - "-c"
+      - 'node openclaw.mjs gateway --allow-unconfigured --bind lan --token "$(cat /run/secrets/openclaw_token)"'
     ports:
-      - "18789:18789"
+      - "127.0.0.1:18789:18789"  # 호스트 loopback에만 묶기
     volumes:
       # Same workspace root the gateway sees, so paths line up perfectly.
       - ./workspaces:/workspaces
@@ -70,7 +77,8 @@ services:
       - ./logs:/app/logs
       # Docker socket so OpenClaw can launch sandbox containers.
       # SECURITY: only OpenClaw needs this — never give it to the gateway.
-      - /var/run/docker.sock:/var/run/docker.sock
+      # - /var/run/docker.sock:/var/run/docker.sock
+      - openclaw_state:/home/node/.openclaw
       - ./openclaw-config.yaml:/app/openclaw-config.yaml:ro
 
   gateway:
@@ -80,6 +88,8 @@ services:
     depends_on:
       openclaw:
         condition: service_started
+    secrets:
+      - openclaw_token
     ports:
       - "8080:8080"
     env_file:
@@ -94,11 +104,16 @@ services:
       OPENCLAW_TIMEOUT_MS: "120000"
       WORKSPACE_ROOT: "/workspaces"
       MOCK_LLM_BASE_URL: "http://mock-llm:9001/v1"
-      BACKEND_MODE: "auto"
+      BACKEND_MODE: "openclaw"
       OPENAI_DEFAULT_MODEL: "gpt-5.4-mini"
       OPENAI_API_BASE: "https://api.openai.com/v1"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENCLAW_TOKEN: "internal-aaas-to-openclaw-token-change-me"
+      OPENCLAW_TOKEN_FILE: /run/secrets/openclaw_token
     volumes:
       - ./tenants.yaml:/app/tenants.yaml:ro
       - ./logs:/app/logs
+      - ../openclaw:/openclaw:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  openclaw_state: {}

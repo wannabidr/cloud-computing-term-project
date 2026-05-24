@@ -15,7 +15,14 @@ gateway:
 
 agents:
   defaults:
-    workspace: /workspaces
+    sandbox:
+      docker:
+        user: "1000:1000"        # 호스트의 일반 uid
+        readOnly: false
+        cap_drop: ["ALL"]
+        security_opt:
+          - "no-new-privileges:true"
+        network: "none"            # 외부 네트워크 차단 (필요 시)
 
 models:
   providers:

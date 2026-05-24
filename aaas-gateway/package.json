@@ -17,10 +17,12 @@
     "pino": "^9.3.2",
     "pino-pretty": "^11.2.2",
     "undici": "^6.19.8",
+    "ws": "^8.18.0",
     "yaml": "^2.5.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.41",
+    "@types/ws": "^8.5.13",
     "tsx": "^4.17.0",
     "typescript": "^5.9.3"
   },

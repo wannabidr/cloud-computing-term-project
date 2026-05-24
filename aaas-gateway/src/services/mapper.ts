@@ -1,5 +1,11 @@
-import type { ResolvedRequestContext, TenantUser, AgentRunRequest } from "../types.js";
+import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { config } from "../config.js"; 
+import type {
+  ResolvedRequestContext,
+  TenantUser,
+  AgentRunRequest,
+} from "../types.js";
 
 /**
  * Server-side mapping.
@@ -18,6 +24,15 @@ export function resolveRequestContext(
     if (banned in cleanedMetadata) {
       delete cleanedMetadata[banned];
     }
+  }
+
+  const root = path.resolve(config.workspaceRoot);
+  const ws = path.resolve(user.workspace_path);
+  const rel = path.relative(root, ws);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new Error(
+      `tenant ${user.id} workspace_path "${user.workspace_path}" escapes root "${config.workspaceRoot}"`
+    );
   }
 
   return {

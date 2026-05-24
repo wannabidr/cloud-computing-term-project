@@ -1,0 +1,217 @@
+C:\cc\aaas-gateway>docker compose exec openclaw sh -c "node openclaw.mjs devices list --token \"$(cat /run/secrets/openclaw_token)\""
+│
+◇
+
+OpenClaw 2026.5.21 (unknown) — Somewhere between 'hello world' and 'oh god what have I built.'
+
+│
+◇
+Pending (1)
+┌──────────────────────────────────────┬───────────────┬───────────────────┬────────────────────┬────────┬─────────────┐
+│ Request                              │ Device        │ Requested         │ Approved           │ Age    │ Status      │
+├──────────────────────────────────────┼───────────────┼───────────────────┼────────────────────┼────────┼─────────────┤
+│ b4fc0fe9-7031-4993-b0dc-5f3b248f43bd │ 4729409b6dbf9 │ roles: operator;  │ none               │ 1m ago │ new pairing │
+│                                      │ 067343fa371db │ scopes: operator. │                    │        │             │
+│                                      │ 64fca439a9518 │ admin, operator.  │                    │        │             │
+│                                      │ 8a64c3cb4bbf7 │ approvals,        │                    │        │             │
+│                                      │ 418b4edf29b8  │ operator.         │                    │        │             │
+│                                      │ · 172.18.0.1  │ pairing,          │                    │        │             │
+│                                      │               │ operator.read,    │                    │        │             │
+│                                      │               │ operator.write    │                    │        │             │
+└──────────────────────────────────────┴───────────────┴───────────────────┴────────────────────┴────────┴─────────────┘
+Paired (1)
+┌───────────────────────────────────────────────────────────────┬────────────┬───────────────┬────────────┬────────────┐
+│ Device                                                        │ Roles      │ Scopes        │ Tokens     │ IP         │
+├───────────────────────────────────────────────────────────────┼────────────┼───────────────┼────────────┼────────────┤
+│ d56f7227efa05e15c13b3d1f33cb9dc4e48ff07d120a4c18a442df1c5df7a │ operator   │ operator.     │ operator   │            │
+│ 1f1                                                           │            │ pairing       │            │            │
+└───────────────────────────────────────────────────────────────┴────────────┴───────────────┴────────────┴────────────┘
+
+C:\cc\aaas-gateway>docker compose exec openclaw sh -c "node openclaw.mjs devices approve b4fc0fe9-7031-4993-b0dc-5f3b248f43bd --token internal-aaas-to-openclaw-token-change-me"
+│
+◇
+
+OpenClaw 2026.5.21 (unknown) — Greetings, Professor Falken
+
+│
+◇
+│
+gateway connect failed: GatewayClientRequestError: scope upgrade pending approval (requestId: 0c516bf8-e342-40b8-b235-36f645ee76a0)
+◇
+Direct scope access failed; using local fallback.
+Approved 4729409b6dbf9067343fa371db64fca439a95188a64c3cb4bbf7418b4edf29b8 (b4fc0fe9-7031-4993-b0dc-5f3b248f43bd)
+
+C:\cc\aaas-gateway>docker compose exec openclaw sh -c "node openclaw.mjs devices list --token internal-aaas-to-openclaw-token-change-me"
+│
+◇
+
+OpenClaw 2026.5.21 (unknown) — I autocomplete your thoughts—just slower and with more API calls.
+
+│
+◇
+Pending (1)
+┌──────────────────────────────────────┬───────────┬───────────────┬────────────────┬──────────┬───────────────────────┐
+│ Request                              │ Device    │ Requested     │ Approved       │ Age      │ Status                │
+├──────────────────────────────────────┼───────────┼───────────────┼────────────────┼──────────┼───────────────────────┤
+│ 0c516bf8-e342-40b8-b235-36f645ee76a0 │ d56f7227e │ roles:        │ roles:         │ just now │ scope upgrade, repair │
+│                                      │ fa05e15c1 │ operator;     │ operator;      │          │                       │
+│                                      │ 3b3d1f33c │ scopes:       │ scopes:        │          │                       │
+│                                      │ b9dc4e48f │ operator.     │ operator.      │          │                       │
+│                                      │ f07d120a4 │ admin,        │ pairing        │          │                       │
+│                                      │ c18a442df │ operator.     │                │          │                       │
+│                                      │ 1c5df7a1f │ read,         │                │          │                       │
+│                                      │ 1         │ operator.     │                │          │                       │
+│                                      │           │ write         │                │          │                       │
+└──────────────────────────────────────┴───────────┴───────────────┴────────────────┴──────────┴───────────────────────┘
+Paired (2)
+┌──────────────────────────────┬────────────┬────────────────────────────────────────────────┬────────────┬────────────┐
+│ Device                       │ Roles      │ Scopes                                         │ Tokens     │ IP         │
+├──────────────────────────────┼────────────┼────────────────────────────────────────────────┼────────────┼────────────┤
+│ 4729409b6dbf9067343fa371db64 │ operator   │ operator.admin, operator.read, operator.       │ operator   │ 172.18.0.1 │
+│ fca439a95188a64c3cb4bbf7418b │            │ write, operator.approvals, operator.pairing    │            │            │
+│ 4edf29b8                     │            │                                                │            │            │
+│ d56f7227efa05e15c13b3d1f33cb │ operator   │ operator.pairing                               │ operator   │            │
+│ 9dc4e48ff07d120a4c18a442df1c │            │                                                │            │            │
+│ 5df7a1f1                     │            │                                                │            │            │
+└──────────────────────────────┴────────────┴────────────────────────────────────────────────┴────────────┴────────────┘
+
+C:\cc\aaas-gateway>docker compose exec openclaw sh -c "node openclaw.mjs devices approve 0c516bf8-e342-40b8-b235-36f645ee76a0 --token internal-aaas-to-openclaw-token-change-me"
+│
+◇
+
+OpenClaw 2026.5.21 (unknown) — If it works, it's automation; if it breaks, it's a "learning opportunity."
+
+│
+◇
+│
+gateway connect failed: GatewayClientRequestError: scope upgrade pending approval (requestId: 0c516bf8-e342-40b8-b235-36f645ee76a0)
+◇
+Direct scope access failed; using local fallback.
+Approved d56f7227efa05e15c13b3d1f33cb9dc4e48ff07d120a4c18a442df1c5df7a1f1 (0c516bf8-e342-40b8-b235-36f645ee76a0)
+
+C:\cc\aaas-gateway>docker compose exec openclaw sh -c "node openclaw.mjs devices list --token internal-aaas-to-openclaw-token-change-me"
+│
+◇
+
+OpenClaw 2026.5.21 (unknown) — I'm not magic—I'm just extremely persistent with retries and coping strategies.
+
+│
+◇
+Paired (2)
+┌──────────────────────────────┬────────────┬────────────────────────────────────────────────┬────────────┬────────────┐
+│ Device                       │ Roles      │ Scopes                                         │ Tokens     │ IP         │
+├──────────────────────────────┼────────────┼────────────────────────────────────────────────┼────────────┼────────────┤
+│ d56f7227efa05e15c13b3d1f33cb │ operator   │ operator.pairing, operator.admin               │ operator   │            │
+│ 9dc4e48ff07d120a4c18a442df1c │            │                                                │            │            │
+│ 5df7a1f1                     │            │                                                │            │            │
+│ 4729409b6dbf9067343fa371db64 │ operator   │ operator.admin, operator.read, operator.       │ operator   │ 172.18.0.1 │
+│ fca439a95188a64c3cb4bbf7418b │            │ write, operator.approvals, operator.pairing    │            │            │
+│ 4edf29b8                     │            │                                                │            │            │
+└──────────────────────────────┴────────────┴────────────────────────────────────────────────┴────────────┴────────────┘
+
+C:\cc\aaas-gateway>docker compose restart gateway
+[+] restart 0/1
+ - Container aaas-gateway Restarting                                                                                2.1s
+
+C:\cc\aaas-gateway>curl -i -X POST http://localhost:8080/v1/agents/run ^
+More?   -H "Authorization: Bearer aaas_demo_token_userA_change_me" ^
+More?   -H "Content-Type: application/json" ^
+More?   -d "{\"agent_id\":\"main\",\"input\":\"hello\"}"
+HTTP/1.1 200 OK
+x-aaas-request-id: aa9fad43-7932-4cda-b6d8-3620d6749448
+x-aaas-backend: openclaw
+content-type: application/json; charset=utf-8
+content-length: 67
+Date: Sun, 24 May 2026 03:16:25 GMT
+Connection: keep-alive
+Keep-Alive: timeout=72
+
+{"runId":"aa9fad43-7932-4cda-b6d8-3620d6749448","status":"started"}
+C:\cc\aaas-gateway>curl -i -X POST http://localhost:8080/v1/agents/run ^
+More?   -H "Authorization: Bearer aaas_demo_token_userB_change_me" ^
+More?   -H "Content-Type: application/json" ^
+More?   -d "{\"agent_id\":\"main\",\"input\":\"B : hello\"}"
+HTTP/1.1 200 OK
+x-aaas-request-id: aa6b0b47-5953-4fd3-863d-748ac50b765a
+x-aaas-backend: openclaw
+content-type: application/json; charset=utf-8
+content-length: 67
+Date: Sun, 24 May 2026 03:16:43 GMT
+Connection: keep-alive
+Keep-Alive: timeout=72
+
+{"runId":"aa6b0b47-5953-4fd3-863d-748ac50b765a","status":"started"}
+
+C:\cc\aaas-gateway>docker compose exec openclaw sh -c "node openclaw.mjs gateway call health --token internal-aaas-to-openclaw-token-change-me --json"
+
+│
+◇
+{
+  "ok": true,
+  "ts": 1779592635621,
+  "durationMs": 25,
+  "eventLoop": {
+    "degraded": false,
+    "reasons": [],
+    "intervalMs": 4971,
+    "delayP99Ms": 20.6,
+    "delayMaxMs": 20.7,
+    "utilization": 0.02,
+    "cpuCoreRatio": 0.023
+  },
+  "modelPricing": {
+    "state": "ok",
+    "sources": []
+  },
+  "channels": {},
+  "channelOrder": [],
+  "channelLabels": {},
+  "heartbeatSeconds": 1800,
+  "defaultAgentId": "main",
+  "agents": [
+    {
+      "agentId": "main",
+      "isDefault": true,
+      "heartbeat": {
+        "enabled": true,
+        "every": "30m",
+        "everyMs": 1800000,
+        "prompt": "Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK.",
+        "target": "none",
+        "ackMaxChars": 300
+      },
+      "sessions": {
+        "path": "/home/node/.openclaw/agents/main/sessions/sessions.json",
+        "count": 2,
+        "recent": [
+          {
+            "key": "agent:main:aaas:user:userb",
+            "updatedAt": 1779592609446,
+            "age": 26150
+          },
+          {
+            "key": "agent:main:aaas:user:usera",
+            "updatedAt": 1779592593620,
+            "age": 41976
+          }
+        ]
+      }
+    }
+  ],
+  "sessions": {
+    "path": "/home/node/.openclaw/agents/main/sessions/sessions.json",
+    "count": 2,
+    "recent": [
+      {
+        "key": "agent:main:aaas:user:userb",
+        "updatedAt": 1779592609446,
+        "age": 26150
+      },
+      {
+        "key": "agent:main:aaas:user:usera",
+        "updatedAt": 1779592593620,
+        "age": 41976
+      }
+    ]
+  }
+}

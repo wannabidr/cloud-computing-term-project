@@ -1,6 +1,8 @@
 import { request } from "undici";
 import { config } from "../config.js";
 import type { ResolvedRequestContext } from "../types.js";
+import { callOpenClawWs } from "./openclaw-ws.js";
+import { callOpenClawCli } from "./openclaw-cli.js";
 
 export interface OpenClawResponse {
   status: number;
@@ -83,12 +85,10 @@ async function callMockLlm(ctx: ResolvedRequestContext): Promise<BackendCallResu
   return { status: res.statusCode, body: parsed };
 }
 
-// ─── Backend 3: OpenClaw (WebSocket — 추후 구현) ──────────
-async function callOpenClaw(_ctx: ResolvedRequestContext): Promise<BackendCallResult> {
-  throw new Error(
-    "OpenClaw WebSocket backend is not implemented yet. " +
-    "Use BACKEND_MODE=openai or BACKEND_MODE=mock for now."
-  );
+// ─── Backend 3: OpenClaw ──────────
+async function callOpenClaw(ctx: ResolvedRequestContext): Promise<BackendCallResult> {
+  const r = await callOpenClawCli(ctx);
+  return { status: r.status, body: r.body };
 }
 
 // ─── 라우터: 모드별 + auto에서 fallback ───────────────────
