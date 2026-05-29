@@ -1,0 +1,30 @@
+{
+  "name": "aaas-gateway",
+  "version": "0.1.0",
+  "description": "Multi-Tenant Agent-as-a-Service Gateway wrapping OpenClaw",
+  "main": "dist/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/sensible": "^5.6.0",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.29.1",
+    "pino": "^9.3.2",
+    "pino-pretty": "^11.2.2",
+    "undici": "^6.19.8",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.41",
+    "tsx": "^4.17.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
