@@ -1,0 +1,20 @@
+# SSH private keys (반드시 git에 들어가면 안 됨)
+keys/
+!keys/.gitkeep
+
+# Generated config snippets (사용자별 secret 경로 포함)
+generated/
+!generated/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

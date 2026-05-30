@@ -1,0 +1,422 @@
+#### 0. 생성된 vm에 접속하기 (vm1_key.pem은 조직의 키)
+ssh -i "C:\Users\siha\Downloads\vm1_key.pem" azureuser@20.41.117.124
+
+#### 1. 새로 붙은 disk 확인 : sda=OS, sdb=temp
+lsblk
+
+#### 2. 파티션 생성
+sudo parted /dev/sda --script mklabel gpt mkpart primary ext4 0% 100%
+
+#### 3. ext4 파일시스템 생성
+sudo mkfs.ext4 -F /dev/sda1
+
+#### 4. mount point 생성 및 mount
+sudo mkdir -p /srv/openclaw-tenants
+sudo mount /dev/sda1 /srv/openclaw-tenants
+
+#### 5. UUID 가져와서 /etc/fstab에 추가 -> reboot 후에도 mount 유지
+UUID=$(sudo blkid -s UUID -o value /dev/sda1)
+echo $UUID
+echo "UUID=$UUID  /srv/openclaw-tenants  ext4  defaults,nofail  0  2" | sudo tee -a /etc/fstab
+
+#### 6. fstab 적용 검증
+sudo mount -a
+
+#### 7. 권한 설정
+sudo chmod 755 /srv/openclaw-tenants
+sudo chown root:root /srv/openclaw-tenants
+
+df -h /srv/openclaw-tenants
+mount | grep /srv/openclaw-tenants
+lsblk
+
+#### 8. Reboot 영속성 검증
+sudo touch /srv/openclaw-tenants/persist-test.txt
+sudo reboot
+
+#### 끊기면 1분 있다가 재접속
+ssh -i "C:\Users\siha\Downloads\vm1_key.pem" azureuser@20.41.117.124
+ls -la /srv/openclaw-tenants/persist-test.txt
+#### 살아있어야 정상
+sudo rm /srv/openclaw-tenants/persist-test.txt
+
+#### 모듈 다운
+sudo apt update
+sudo apt -y upgrade
+sudo apt -y install bash python3 python3-pip python3-venv git curl jq ripgrep openssh-server ca-certificates build-essential
+bash --version && python3 --version && git --version && curl --version | head -1 && jq --version && rg --version | head -1 && sshd -V 2>&1 | head -1
+
+#### 테넌트 전송(tenants.json) 후 등록
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" tenants.json azureuser@20.41.117.124:~/tenants.json
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" .\scripts\provision-tenants.sh azureuser@20.41.117.124:~/provision-tenants.sh
+
+
+#### vm에서 실행
+mkdir -p ./openclaw-aaas
+mv ./tenants.json ./openclaw-aaas/
+mv ./provision-tenants.sh ./openclaw-aaas/
+cd ./openclaw-aaas
+ls -la                           
+#### tenants.json, provision-tenants.sh 있는지 확인
+sudo chown -R azureuser:azureuser ~/openclaw-aaas/keys ~/openclaw-aaas/generated
+sudo VM_HOST=20.41.117.124 ./provision-tenants.sh
+
+#### tenants.json에 있는 목록으로 유저 생성
+id tnt_alice
+id tnt_bob
+ls -ld /srv/openclaw-tenants/tnt_alice
+ls -ld /srv/openclaw-tenants/tnt_bob
+ls -la ~/openclaw-aaas/keys/
+
+sudo -u tnt_alice bash -lc 'ls /srv/openclaw-tenants/tnt_bob'
+#### -> 1차 검증지 : permission denied가 나와야 함
+
+#### tenant private key를 azureuser가 읽을 수 있게 복사 (테스트 목적)
+cp ~/openclaw-aaas/keys/openclaw_aaas_tnt_alice /tmp/test_alice
+chmod 600 /tmp/test_alice
+ssh -i /tmp/test_alice -o StrictHostKeyChecking=no tnt_alice@localhost 'whoami; pwd'
+ssh -i /tmp/test_alice -o StrictHostKeyChecking=no tnt_bob@localhost 'whoami' 2>&1 | head -5
+#### 또 권한오류 나와야 정상
+rm /tmp/test_alice
+
+#### 결과 파일 로컬로 회수
+cd C:\cloud\repo
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/keys/ .\keys-from-vm\
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/generated/ .\generated-from-vm\
+
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/keys/openclaw_aaas_tnt_alice .\keys\
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/keys/openclaw_aaas_tnt_alice.pub .\keys\
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/keys/openclaw_aaas_tnt_bob .\keys\
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/keys/openclaw_aaas_tnt_bob.pub .\keys\
+
+#### config snippets
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/generated/openclaw-config-tnt_alice.json5 .\generated\
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/generated/openclaw-config-tnt_bob.json5 .\generated\
+
+① C:\cloud\repo\keys\ 
+    역할: 운영자가 provisioning으로 VM에서 회수한 테넌트 키들의 로컬 archive
+    내용: alice, bob, charlie... 모두의 키 같이 있음
+
+② C:\Users\siha\.ssh\ 
+    역할: 이 컴퓨터의 SSH 클라이언트 + OpenClaw가 읽는 곳
+    내용: 이 PC가 "내 키"로 쓸 것
+    (snippet의 ~/.ssh/openclaw_aaas_tnt_alice가 가리키는 곳)
+
+#### C:\Users\siha\.ssh\ 폴더생성
+New-Item -ItemType Directory -Path $env:USERPROFILE\.ssh -Force | Out-Null
+Test-Path $env:USERPROFILE\.ssh
+
+#### private key 2개를 .ssh\로 복사
+Copy-Item C:\cloud\repo\keys\openclaw_aaas_tnt_alice  $env:USERPROFILE\.ssh\
+Copy-Item C:\cloud\repo\keys\openclaw_aaas_tnt_bob  $env:USERPROFILE\.ssh\
+Get-ChildItem $env:USERPROFILE\.ssh\openclaw_aaas_tnt_*
+
+#### USERPROFILE만 이용할 수 있게 Windows 권한 잠그기
+foreach ($k in 'openclaw_aaas_tnt_alice','openclaw_aaas_tnt_bob') {
+    $path = "$env:USERPROFILE\.ssh\$k"
+    icacls $path /inheritance:r | Out-Null
+    icacls $path /grant:r "${env:USERNAME}:R" | Out-Null
+    Write-Host "Locked: $path"
+}
+#### .ssh 폴더 내부 보기
+Get-ChildItem $env:USERPROFILE\.ssh\
+
+
+#### VM의 host key 가져와서 known_hosts(서버 신분증 리스트)에 추가해 PC가 조직 서버를 신뢰하도록 설정
+ssh-keyscan -t ed25519,rsa 20.41.117.124 2>$null | Add-Content -Encoding ASCII $env:USERPROFILE\.ssh\known_hosts
+$kh = "$env:USERPROFILE\.ssh\known_hosts"
+(Get-Content $kh) | Sort-Object -Unique | Set-Content -Encoding ASCII $kh
+Select-String -Path $env:USERPROFILE\.ssh\known_hosts -Pattern "20.41.117.124"
+
+#### 검증
+ssh -o StrictHostKeyChecking=yes -i $env:USERPROFILE\.ssh\openclaw_aaas_tnt_alice tnt_alice@20.41.117.124 "whoami"
+
+
+#### 1. OpenClaw config 디렉토리 준비
+$cfgDir = "$env:USERPROFILE\.openclaw"
+New-Item -ItemType Directory -Path $cfgDir -Force | Out-Null
+
+#### 2. 두 tenant 보존본 + Alice를 활성 config로
+Copy-Item C:\cloud\repo\generated\openclaw-config-tnt_alice.json5 "$cfgDir\config-alice.json5" -Force
+Copy-Item C:\cloud\repo\generated\openclaw-config-tnt_bob.json5 "$cfgDir\config-bob.json5" -Force
+Copy-Item "$cfgDir\config-alice.json5" "$cfgDir\config.json5" -Force
+
+#### 3. 활성 config 내용 확인
+Get-Content "$cfgDir\config.json5"
+
+#### 4. 디렉토리 상태 확인
+Get-ChildItem $cfgDir
+
+#### 활성화
+corepack enable
+
+#### 해당 저장소로 이동 (package.json이 있는 위치)
+cd C:\cloud\repo\external\openclaw
+
+#### corepack이 package.json의 packageManager를 읽어서 pnpm@11.2.2를 자동 준비
+corepack prepare --activate
+cd C:\cloud\repo\external\openclaw
+nvm use 22
+pnpm -v -> 11.2.2
+pnpm install
+pnpm build
+
+#### openclaw.mjs가 실행 가능한지 직접 확인
+Get-ChildItem openclaw.mjs
+node .\openclaw.mjs --version
+
+#### 함수 등록 (영구)
+if (-not (Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force }
+if (-not (Select-String -Path $PROFILE -Pattern 'function openclaw' -Quiet)) {
+    Add-Content $PROFILE 'function openclaw { node C:\cloud\repo\external\openclaw\openclaw.mjs @args }'
+}
+
+#### 현재 세션 openclaw 즉시 등록
+function openclaw { node C:\cloud\repo\external\openclaw\openclaw.mjs @args }
+
+#### 동작 확인
+openclaw --version
+
+#### 터미널 출력
+PS C:\cloud\repo\external\openclaw> openclaw config file
+~\.openclaw\openclaw.json
+
+## powershell에 그대로 붙여넣어 config 활성
+이 단계에서 테넌트들이 ssh 통신을 통해 vm에 접속, vm 내부의 워크스페이스에 작업물 저장 가능
+----------------------
+
+# === Alice config (strict JSON) ===
+$aliceConfig = @'
+{
+  "agents": {
+    "defaults": {
+      "sandbox": {
+        "mode": "all",
+        "backend": "ssh",
+        "scope": "session",
+        "workspaceAccess": "rw",
+        "ssh": {
+          "target": "tnt_alice@20.41.117.124:22",
+          "workspaceRoot": "/srv/openclaw-tenants/tnt_alice/sandboxes",
+          "strictHostKeyChecking": true,
+          "updateHostKeys": true,
+          "identityFile": "~/.ssh/openclaw_aaas_tnt_alice",
+          "knownHostsFile": "~/.ssh/known_hosts"
+        }
+      }
+    }
+  }
+}
+'@
+
+# === Bob config (strict JSON) ===
+$bobConfig = @'
+{
+  "agents": {
+    "defaults": {
+      "sandbox": {
+        "mode": "all",
+        "backend": "ssh",
+        "scope": "session",
+        "workspaceAccess": "rw",
+        "ssh": {
+          "target": "tnt_bob@20.41.117.124:22",
+          "workspaceRoot": "/srv/openclaw-tenants/tnt_bob/sandboxes",
+          "strictHostKeyChecking": true,
+          "updateHostKeys": true,
+          "identityFile": "~/.ssh/openclaw_aaas_tnt_bob",
+          "knownHostsFile": "~/.ssh/known_hosts"
+        }
+      }
+    }
+  }
+}
+'@
+
+# === Alice profile 저장 ===
+$aliceDir = "$env:USERPROFILE\.openclaw-alice"
+New-Item -ItemType Directory -Path $aliceDir -Force | Out-Null
+[System.IO.File]::WriteAllText("$aliceDir\openclaw.json", $aliceConfig, [System.Text.UTF8Encoding]::new($false))
+
+# === Bob profile 저장 ===
+$bobDir = "$env:USERPROFILE\.openclaw-bob"
+New-Item -ItemType Directory -Path $bobDir -Force | Out-Null
+[System.IO.File]::WriteAllText("$bobDir\openclaw.json", $bobConfig, [System.Text.UTF8Encoding]::new($false))
+
+# 내용 확인
+Get-Content "$aliceDir\openclaw.json"
+Get-Content "$bobDir\openclaw.json"
+
+# JSON 파싱 검증
+Get-Content "$aliceDir\openclaw.json" -Raw | ConvertFrom-Json | Format-List
+Get-Content "$bobDir\openclaw.json" -Raw | ConvertFrom-Json | Format-List
+
+-------------
+
+#### 다시 확인 — Step 2 후에도 같은 경로를 가리켜야 정상
+openclaw --profile alice config file
+openclaw --profile bob config file
+
+#### Alice
+openclaw --profile alice config set gateway.mode local
+
+#### Bob도 동일하게
+openclaw --profile bob config set gateway.mode local
+
+
+#### 조직에서 공유할 모델 할당
+openclaw --profile alice models auth paste-api-key --provider 이름(google/openai...)
+-> 키 입력
+openclaw --profile alice models fallbacks add provider이름/모델명(e.g. google/gemini-2.5-flash)
+
+#### 현재 테넌트에 허가된 모델 조회
+openclaw --profile alice models status
+
+#### 디폴트 모델 설정
+openclaw --profile alice models set google/gemini-2.5-flash
+
+## + 모델 설정 명령 전체 정리
+
+#### A. `openclaw models *` 전체 서브커맨드
+
+| 명령 | 용도 |
+|---|---|---|
+| `models status` | 현재 모델/auth 상태 출력 |
+| `models list` | 등록된 모델 목록 |
+| `models set` | default 모델 변경 |
+| `models set-image` | 이미지 모델 default 변경 |
+| `models scan` | OpenRouter 무료 모델 자동 탐색 |
+| `models aliases` | 모델 별칭 관리 |
+| `models fallbacks` | 모델 실패 시 fallback 체인 |
+| `models image-fallbacks` | 이미지 모델 fallback |
+| `models auth *` | **인증 프로파일 관리** |
+
+#### B. `openclaw models auth *` 세부 명령
+
+| 명령 | 동작 방식 |
+|---|---|---|
+| `auth add` | 대화형 도우미 (질문에 답하며 등록) |
+| `auth list` | 등록된 auth 프로파일 목록 보기 |
+| `auth login` | provider OAuth 또는 API key flow |
+| `auth login-github-copilot` | GitHub device flow |
+| `auth order` | per-agent 우선순위 조정 |
+| **`auth paste-api-key`** | **API key 직접 붙여넣기** |
+| `auth paste-token` | OAuth/Bearer 토큰 붙여넣기 |
+| `auth setup-token` | provider CLI로 토큰 생성/동기화 |
+
+#### 둘 다 같은 random string으로 토큰설정
+$tok = "openclaw-aaas-poc-12345"
+openclaw --profile alice config set gateway.auth.mode token
+openclaw --profile alice config set gateway.auth.token $tok
+openclaw --profile alice config set gateway.remote.token $tok
+
+#### Bob은 다른 token으로
+$tokB = "openclaw-aaas-poc-67890"
+openclaw --profile bob config set gateway.auth.mode token
+openclaw --profile bob config set gateway.auth.token $tokB
+openclaw --profile bob config set gateway.remote.token $tokB
+
+#### Bob의 gateway 포트를 다른 값으로
+openclaw --profile bob config set gateway.port 18889
+
+#### Bob agent CLI가 그 포트로 붙도록 client target도 맞춤
+openclaw --profile bob config set gateway.remote.target ws://127.0.0.1:18889
+
+#### 검증
+openclaw --profile bob config get gateway.port
+openclaw --profile bob config get gateway.remote.target
+
+#### 함수 다시 로드 후 Alice gateway 실행 (질의 종료까지 계속 켜둠)
+function openclaw { node C:\cloud\repo\external\openclaw\openclaw.mjs @args }
+openclaw --profile alice gateway run
+
+#### 1. 다른 창 열어서 시험 — pwd
+openclaw --profile alice agent --agent main --message "Run pwd and show output"
+
+#### TUI로 대화형 시험
+openclaw --profile alice tui --local
+
+#### 파일 쓰기 시험
+openclaw --profile alice agent --agent main --message "Run: echo alice > report.txt"
+
+## 결과 점검
+
+#### VM에서 결과 확인
+ssh -i "C:\Users\siha\Downloads\vm1_key.pem" azureuser@20.41.117.124
+sudo find /srv/openclaw-tenants -name report.txt -print -exec cat {} \;
+#### -> 기대출력
+/srv/openclaw-tenants/tnt_alice/sandboxes/<session-id>/report.txt
+alice
+
+#### 최종 : 다른 유저들이 서로 다른 워크스페이스, 서로 다른 agent 설정 가짐
+sudo find /srv/openclaw-tenants -type f -printf "%p (%U:%G mode=%m)\n"
+...
+/srv/openclaw-tenants/tnt_alice/sandboxes/openclaw-ssh-agent-main-main-1b41619c/workspace/SOUL.md (1001:1001 mode=664)
+/srv/openclaw-tenants/tnt_alice/sandboxes/openclaw-ssh-agent-main-main-1b41619c/workspace/HEARTBEAT.md (1001:1001 mode=664)
+/srv/openclaw-tenants/tnt_alice/sandboxes/openclaw-ssh-agent-main-main-1b41619c/workspace/USER.md (1001:1001 mode=664)
+/srv/openclaw-tenants/tnt_alice/sandboxes/openclaw-ssh-agent-main-main-1b41619c/workspace/report.txt (1001:1001 mode=664)
+/srv/openclaw-tenants/tnt_bob/sandboxes/openclaw-ssh-agent-main-main-1b41619c/workspace/IDENTITY.md (1002:1002 mode=664)
+/srv/openclaw-tenants/tnt_bob/sandboxes/openclaw-ssh-agent-main-main-1b41619c/workspace/TOOLS.md (1002:1002 mode=664)
+/srv/openclaw-tenants/tnt_bob/sandboxes/openclaw-ssh-agent-main-main-1b41619c/workspace/english.txt (1002:1002 mode=664)
+/srv/openclaw-tenants/tnt_bob/sandboxes/openclaw-ssh-agent-main-main-1b41619c/workspace/AGENTS.md (1002:1002 mode=664)
+
+#### 출력 결과 해석
+- 디스크는 하나(공유), 그 위에 tenant 별 root가 700 권한으로 격리
+- session 디렉토리 이름(...1b41619c)이 양쪽 동일하지만 owner UID가 1001 vs 1002 — 이름은 같아도 옆 사람 디렉토리는 아예 진입 불가
+- 파일 mode는 664이지만 상위 tenant root 700이 막아서 others 접근 차단
+
+
+### 조직원들이 각각 다른 테넌트로 접근하기 위해 조직이 배포할 키 값
+
+#### 사용자 1 (Alice) 가 받을 것
+
+| 항목 | 출처 | 설치 위치 |
+|---|---|---|
+| **Private SSH key** | `<repo>/keys/openclaw_aaas_tnt_alice` | Alice PC: `~/.ssh/openclaw_aaas_tnt_alice` (chmod 600) |
+| **OpenClaw config snippet** | `<repo>/generated/openclaw-config-tnt_alice.json5` | Alice PC: OpenClaw config 파일에 머지 (또는 `--profile alice openclaw.json`) |
+| **AI 모델 API key** | 조직 정책 (사내 키 / Gemini key 등) | Alice PC: OpenClaw에 등록 (`models auth paste-api-key`) |
+
+#### 사용자 2 (Bob) 이 받을 것
+
+같은 구조로 Bob 버전:
+- Private key: `openclaw_aaas_tnt_bob`
+- Config snippet: Bob의 target/workspaceRoot/identityFile
+- AI API key (개인 또는 공용)
+
+## **팀장(azureuser)이 관리할 것**
+- VM admin(`azureuser`) 키
+- `tenants.json` 또는 provisioning script
+
+### 사용자별 셋업 가이드
+
+```text
+1. private key 파일을 ~/.ssh/openclaw_aaas_tnt_<이름>으로 저장
+2. 권한 잠금:
+   - Linux/macOS: chmod 600 ~/.ssh/openclaw_aaas_tnt_<이름>
+   - Windows: icacls 으로 본인 계정만 R 권한
+3. VM host key를 known_hosts에 등록:
+   ssh-keyscan -t ed25519 <VM-IP> >> ~/.ssh/known_hosts
+4. SSH 단독 검증:
+   ssh -i ~/.ssh/openclaw_aaas_tnt_<이름> tnt_<이름>@<VM-IP> "whoami"
+5. OpenClaw 설치 후 config snippet 머지
+6. AI 모델 API key 등록
+7. openclaw sandbox explain 으로 backend=ssh 확인
+8. openclaw agent --message "..." 로 모델 페르소나 입력, 파일 생성 요청 등
+```
+
+### 로컬로 파일 받아오기
+#### 1. VM에서 tar 압축 (테넌트 자신의 영역만)
+ssh -i $env:USERPROFILE\.ssh\openclaw_aaas_tnt_alice tnt_alice@20.41.117.124 `
+    "tar czf /tmp/alice-sandboxes.tar.gz -C /srv/openclaw-tenants/tnt_alice sandboxes/"
+
+#### 2. 압축 파일 다운로드
+scp -i $env:USERPROFILE\.ssh\openclaw_aaas_tnt_alice `
+    tnt_alice@20.41.117.124:/tmp/alice-sandboxes.tar.gz `
+    C:\cloud\repo\downloads\
+
+#### 3. VM 쪽 임시 파일 정리
+ssh -i $env:USERPROFILE\.ssh\openclaw_aaas_tnt_alice tnt_alice@20.41.117.124 `
+    "rm /tmp/alice-sandboxes.tar.gz"
+
+#### 4. 로컬에서 압축 풀기
+tar -xzf C:\cloud\repo\downloads\alice-sandboxes.tar.gz -C C:\cloud\repo\downloads\alice-all\
