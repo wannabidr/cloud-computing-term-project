@@ -92,47 +92,7 @@ Jones, M. et al., JSON Web Token (JWT), RFC 7519, IETF, 2015
 
 ### 시스템 구조도
 
-```mermaid
-graph TD
-
-A[User PC / Web Dashboard]
-
-A --> B[AaaS Gateway]
-
-A --> C[Local OpenClaw Gateway]
-
-B --> D[Authentication]
-
-B --> E[Authorization]
-
-B --> F[Request Router]
-
-B --> G[Logging]
-
-F --> H[Mock LLM]
-
-F --> I[OpenAI API]
-
-C --> J[OpenClaw SSH Sandbox Backend]
-
-F --> J
-
-J --> K[Azure VM Sandbox Host]
-
-K --> L[Tenant Alice]
-
-K --> M[Tenant Bob]
-
-K --> N[Tenant Charlie]
-
-L --> O[Workspace A]
-
-M --> P[Workspace B]
-
-N --> Q[Workspace C]
-```
-
-
+![시스템 구조도](./flowchart.svg)
 
 ### 시스템 개요
 
@@ -240,7 +200,7 @@ Dashboard에서는 등록된 테넌트(userA, userB 등)의 사용 현황을 시
 중간 보고서 시점과 최종 결과물 사이에는 두 가지 주요 변경이 있었다.
 1) OpenClaw 연동 방식 변경
 중간 보고서 시점에는 OpenClaw SSH Sandbox Backend와의 연동에 어려움이 있어, Gateway의 백엔드 선택지로 Mock LLM, OpenAI API, OpenClaw Agent 세 가지를 병렬로 두는 구조를 설계하였다. OpenClaw 연동이 불안정한 상황에서도 시스템 전체 동작을 검증하기 위한 대안적 접근이었다.
-이후 OpenClaw SSH Sandbox Backend 연동 문제를 해결하여 최종 결과물에서는 OpenClaw Agent가 정식 실행 경로로 동작하게 되었다. Mock LLM과 OpenAI API는 테스트 및 검증 목적으로 병행 제공되며, 조직이 모델 키를 발급하고 테넌트가 OpenClaw를 통해 클라우드 Workspace에서 작업하는 구조로 정리되었다.
+이후 OpenClaw SSH Sandbox Backend 연동 문제를 해결하여 최종 결과물에서는 OpenClaw Agent가 정식 실행 경로로 동작하게 되었다.
 2) 모니터링 Dashboard 추가
 중간 보고서 시점에는 모니터링 기능이 포함되지 않았으나 이후 테넌트별 요청 수, 성공/실패 횟수, 평균 응답 시간을 실시간으로 시각화하는 Dashboard가 추가되었다. 이를 통해 운영자가 시스템 상태와 각 테넌트의 사용 현황을 한눈에 파악할 수 있게 되었다.
 
