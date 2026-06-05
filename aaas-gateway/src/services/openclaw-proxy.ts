@@ -84,11 +84,31 @@ async function callMockLlm(ctx: ResolvedRequestContext): Promise<BackendCallResu
 }
 
 // ─── Backend 3: OpenClaw (WebSocket — 추후 구현) ──────────
-async function callOpenClaw(_ctx: ResolvedRequestContext): Promise<BackendCallResult> {
-  throw new Error(
-    "OpenClaw WebSocket backend is not implemented yet. " +
-    "Use BACKEND_MODE=openai or BACKEND_MODE=mock for now."
-  );
+async function callOpenClaw(ctx: ResolvedRequestContext): Promise<BackendCallResult> {
+  const url = `${config.openclawBaseUrl}/v1/chat/completions`;
+  const upstreamBody = {
+    model: "openclaw",
+    messages: [{ role: "user", content: ctx.input }],
+  };
+
+  const res = await request(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "authorization": `Bearer ${config.openclawToken}`,
+      "x-aaas-user-id": ctx.user.id,
+      "x-aaas-workspace": ctx.user.workspace_path,
+    },
+    body: JSON.stringify(upstreamBody),
+    bodyTimeout: config.openclawTimeoutMs,
+    headersTimeout: config.openclawTimeoutMs,
+  });
+
+  const text = await res.body.text();
+  let parsed: unknown = text;
+  try { parsed = JSON.parse(text); } catch {}
+
+  return { status: res.statusCode, body: parsed };
 }
 
 // ─── 라우터: 모드별 + auto에서 fallback ───────────────────
