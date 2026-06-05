@@ -36,7 +36,7 @@ async function callOpenAI(ctx: ResolvedRequestContext): Promise<BackendCallResul
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "authorization": `Bearer ${config.openaiApiKey}`,
+      "authorization": `Bearer ${ctx.user.id === "userB" ? "openclaw-aaas-poc-67890" : config.openclawToken}`,
     },
     body: JSON.stringify(upstreamBody),
     bodyTimeout: config.openclawTimeoutMs,
@@ -85,7 +85,8 @@ async function callMockLlm(ctx: ResolvedRequestContext): Promise<BackendCallResu
 
 // ─── Backend 3: OpenClaw (WebSocket — 추후 구현) ──────────
 async function callOpenClaw(ctx: ResolvedRequestContext): Promise<BackendCallResult> {
-  const url = `${config.openclawBaseUrl}/v1/chat/completions`;
+  const baseUrl = ctx.user.id === "userB" ? "http://localhost:18889" : config.openclawBaseUrl;
+  const url = `${baseUrl}/v1/chat/completions`;
   const upstreamBody = {
     model: "openclaw",
     messages: [{ role: "user", content: ctx.input }],
@@ -95,7 +96,7 @@ async function callOpenClaw(ctx: ResolvedRequestContext): Promise<BackendCallRes
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "authorization": `Bearer ${config.openclawToken}`,
+      "authorization": `Bearer ${ctx.user.id === "userB" ? "openclaw-aaas-poc-67890" : config.openclawToken}`,
       "x-aaas-user-id": ctx.user.id,
       "x-aaas-workspace": ctx.user.workspace_path,
     },
