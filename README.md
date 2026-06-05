@@ -225,11 +225,8 @@ Dashboard에서는 등록된 테넌트(userA, userB 등)의 사용 현황을 시
 1. 사용자는 웹 Dashboard에 접속한다.
 2. 사용할 사용자 또는 Tenant를 선택한다.
 3. Prompt 입력 창에 Agent에게 요청할 작업을 입력한다.
-4. Backend 선택 메뉴에서 Mock LLM, OpenAI API, OpenClaw Agent 중 하나를 선택한다.
-5. 요청을 전송하면 AaaS Gateway가 인증, 인가, 라우팅, 로그 기록을 수행한다.
-6. Dashboard에서 AI 응답과 요청 처리 기록을 확인한다.
-
-Mock LLM은 외부 API Key 없이 기본 동작을 확인하기 위한 테스트용 Backend이며, OpenAI API는 실제 LLM 응답을 확인하기 위한 Backend이다. OpenClaw Agent 경로는 Azure VM의 tenant별 Workspace와 SSH Sandbox 연동을 검증하기 위해 사용한다.
+4. 요청을 전송하면 AaaS Gateway가 인증, 인가, 라우팅, 로그 기록을 수행한다.
+5. Dashboard에서 AI 응답과 요청 처리 기록을 확인한다.
 
 ### 2. OpenClaw SSH Sandbox 사용 방법
 
