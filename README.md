@@ -18,7 +18,7 @@
 
 OpenClaw를 기반으로 여러 사용자가 하나의 클라우드 Sandbox 실행 환경을 공유하면서도 독립적인 작업 공간을 유지할 수 있는 Multi-Tenant Agent-as-a-Service(AaaS) 플랫폼을 구현하는 것을 목표로 한다.
 
-기존 OpenClaw는 Local-First 구조로 설계되어 Agent 실행 환경과 Workspace가 사용자 개인 PC에 종속된다. 따라서 여러 사용자가 하나의 Agent 환경을 공유하기 어렵고, Workspace 충돌이나 환경 불일치 문제가 발생할 수 있다.
+기존 OpenClaw는 Local-First 구조로 설계되어 Agent 실행 환경과 Workspace가 사용자 개인 PC에 종속된다. OpenClaw 기준 최소 권장 메모리는 약 4GB 수준이지만, 여러 Agent 작업을 동시에 수행하거나 고부하로 운용하는 경우 16GB 이상의 메모리가 요구될 수 있어 사용자 PC 사양에 따라 실행 품질이 크게 달라진다. 또한 단일 머신을 여러 사용자가 공유하는 방식으로는 Workspace 충돌, 사용자 간 격리 불가, 협업 환경 구성의 어려움이 발생한다.
 
 이를 해결하기 위해 Azure VM 상에 공용 Sandbox 실행 환경을 구축하고, 각 사용자에게 독립적인 Linux 계정과 Workspace를 제공하는 구조를 설계했다. OpenClaw Core는 수정하지 않고 기존 SSH Sandbox Backend를 활용하여 Agent의 Tool 실행과 Workspace 작업을 클라우드로 오프로드하는 방식을 검증했다.
 
@@ -26,11 +26,13 @@ OpenClaw를 기반으로 여러 사용자가 하나의 클라우드 Sandbox 실�
 
 최근 LLM 기반 개발 도구는 단순한 질의응답형 챗봇을 넘어, 파일을 읽고 수정하며 명령을 실행하는 Agent Harness 형태로 발전하고 있다. OpenClaw, Hermes, Claude Code와 같은 도구는 이러한 흐름을 보여주는 대표적인 사례이며, 개발자는 Agent를 통해 코드 작성, 테스트, 문서화, 운영 자동화 작업을 하나의 흐름으로 수행할 수 있다.
 
-그러나 현재의 Agent Harness는 대부분 Local-First 구조를 전제로 한다. 사용자는 개인 PC에 실행 환경, 의존성, Workspace, 인증 정보를 직접 구성해야 하며, Agent의 Tool 실행도 로컬 자원에 의존한다. 이 방식은 개인 개발자에게는 유연하지만, 여러 사용자가 동일한 실행 환경을 공유하거나 조직 단위로 Agent를 운영하려는 경우 다음과 같은 한계가 발생한다.
+그러나 현재의 Agent Harness는 대부분 Local-First 구조를 전제로 한다. 사용자는 개인 PC에 실행 환경, 의존성, Workspace, 인증 정보를 직접 구성해야 하며, Agent의 Tool 실행도 로컬 자원에 의존한다. 이 방식은 개인 개발자에게는 유연하지만, 복잡한 설정과 운용 부담 때문에 사용 진입장벽이 높고, 실무 도입 이전 단계에서 이미 환경 구성과 자원 요구사항이라는 장벽에 부딪히기 쉽다. 여러 사용자가 동일한 실행 환경을 공유하거나 조직 단위로 Agent를 운영하려는 경우에는 다음과 같은 한계가 발생한다.
 
 - 사용자 PC의 CPU, 메모리, 디스크 성능에 따라 Agent 실행 품질이 달라진다.
+- OpenClaw와 같은 Agent Harness는 기본 실행에도 일정 수준 이상의 메모리를 요구하며, 고부하 운용 시 일반 사용자 PC에서 안정적으로 실행하기 어렵다.
 - 사용자마다 개발 도구와 의존성 버전이 달라 재현성이 떨어진다.
 - 여러 사용자가 같은 Agent 환경을 사용할 때 Workspace 충돌과 데이터 노출 위험이 생긴다.
+- 단일 머신을 팀원이 공유하는 방식으로는 사용자별 페르소나, Workspace, 권한을 안정적으로 분리하기 어렵다.
 - 사용자별 실행 이력, 파일 변경 이력, 요청 로그를 중앙에서 관리하기 어렵다.
 - 기업 또는 교육 환경에서 사용자별 권한과 작업 공간을 일관되게 통제하기 어렵다.
 
@@ -100,7 +102,7 @@ Jones, M. et al., JSON Web Token (JWT), RFC 7519, IETF, 2015
 
 기존 OpenClaw는 Local-First 구조로 설계되어 Agent 실행 환경과 Workspace가 사용자 개인 PC에 종속된다. 이 경우 여러 사용자가 동일한 Agent 환경을 공유하기 어렵고, 파일 충돌, 환경 불일치, 사용자 간 데이터 노출 등의 문제가 발생할 수 있다.
 
-본 프로젝트는 OpenClaw Core를 수정하지 않고 기존 SSH Sandbox Backend를 활용하여 Azure VM 상에 공용 Sandbox 실행 환경을 구축했다. 각 사용자는 독립적인 Linux 계정과 Workspace를 부여받으며, OS 권한을 이용하여 사용자 간 격리를 보장한다. 또한 AaaS Gateway를 통해 인증, 인가, 요청 라우팅 및 로그 관리를 중앙화하여 다양한 AI Backend를 통합 관리할 수 있도록 설계했다.
+본 프로젝트는 OpenClaw Core를 수정하지 않고 기존 SSH Sandbox Backend를 활용하여 Azure VM 상에 공용 Sandbox 실행 환경을 구축했다. 각 사용자는 독립적인 Linux 계정과 Workspace를 부여받으며, OS 권한을 이용하여 사용자 간 격리를 보장한다. 최종 핵심 실행 경로에서는 각 사용자가 자신의 로컬 OpenClaw Gateway를 실행하고, Agent의 Shell/File Tool 실행은 SSH 기반 연결을 통해 Azure VM의 Tenant Workspace에서 수행된다. AaaS Gateway와 웹 Dashboard는 인증, 인가, 요청 라우팅, 로그 관리, 사용량 관찰을 확인하기 위한 웹 기반 보조 시연 경로로 구현했다.
 
 ### 주요 기능
 
@@ -124,7 +126,7 @@ tnt_charlie
 /srv/openclaw-tenants/tnt_charlie/
 ```
 
-Workspace는 Linux 파일 권한(chmod 700)을 통해 보호되며, 다른 사용자의 Workspace 접근이 OS 수준에서 차단된다.
+Workspace는 Linux 파일 권한(chmod 700)과 Gateway/OpenClaw 경로 검증을 통해 보호된다. 최종 사용자 요청 경로에서는 다른 사용자의 Workspace가 조회 가능한 디렉터리로 노출되지 않으며, 타 테넌트 구조 조회 시 `No such file or directory`로 처리된다.
 
 이를 통해 다음을 보장한다.
 
@@ -135,13 +137,14 @@ Workspace는 Linux 파일 권한(chmod 700)을 통해 보호되며, 다른 사�
 
 #### 2. AaaS Gateway
 
-Gateway는 모든 AI 요청의 진입점 역할을 수행한다.
+Gateway는 웹 Dashboard 기반 시연에서 AI 요청의 진입점 역할을 수행한다. 최종 핵심 실행 경로는 로컬 OpenClaw Gateway와 SSH Sandbox Backend이지만, AaaS Gateway를 통해 조직 관리자가 요청 흐름과 테넌트별 사용량을 관찰할 수 있는 별도 관리 경로를 함께 검증했다.
 
 주요 기능은 다음과 같다.
 
 - 사용자의 신원 검증 (Authentication)
 - 사용자의 접근 권한 확인 (Authorization)
-- 로깅 및 라우팅
+- 요청 라우팅
+- 요청 이력, Tool 실행 결과, 파일 변경 내역 기록
 
 #### 3. 조직 관리형 AI Agent 선택 구조
 조직(VM 운영자)이 업무에 최적화된 AI 모델을 선정하고, 해당 모델의 API 키를 테넌트에게 발급하는 구조를 채택했다. 테넌트는 조직으로부터 할당받은 키를 사용하여 OpenClaw Agent를 통해 클라우드 Workspace에서 작업을 수행한다.
@@ -185,7 +188,7 @@ Dashboard에서는 등록된 테넌트(userA, userB 등)의 사용 현황을 시
 
 - Azure VM에 `tnt_alice`, `tnt_bob` 사용자 계정과 Tenant별 Workspace가 생성됨을 확인했다.
 - Alice의 SSH Key는 Alice 계정에만 접속할 수 있고, Bob의 SSH Key는 Bob 계정에만 접속할 수 있음을 확인했다.
-- Alice 계정에서 Bob Workspace에 접근하거나 Bob 계정에서 Alice Workspace에 접근할 경우 `Permission denied`가 발생하여 OS 수준의 격리가 동작함을 확인했다.
+- Alice 계정에서 Bob Workspace에 접근하거나 Bob 계정에서 Alice Workspace에 접근할 경우 `No such file or directory`가 발생하도록 처리되어, 다른 테넌트의 Workspace 구조 자체를 조회할 수 없음을 확인했다.
 - OpenClaw SSH Sandbox Backend를 통해 Azure VM의 Tenant별 Workspace에서 파일 생성과 명령 실행이 가능함을 확인했다.
 - OpenAI OAuth 기반 Agent 실행에서도 `sandbox_exec` 경로를 사용할 경우 결과 파일이 Azure VM의 Tenant Workspace에 생성됨을 확인했다.
 
@@ -230,7 +233,7 @@ Workspace root:
   - /srv/openclaw-tenants/tnt_bob/sandboxes
 ```
 
-각 Tenant는 서로 다른 Linux 계정과 SSH Key를 사용한다. `tnt_alice`는 Alice Workspace만 접근할 수 있고, `tnt_bob`는 Bob Workspace만 접근할 수 있다. 격리는 OpenClaw 설정만이 아니라 Azure VM의 Linux 파일 권한(`chmod 700`)으로 강제된다.
+각 Tenant는 서로 다른 Linux 계정과 SSH Key를 사용한다. `tnt_alice`는 Alice Workspace만 접근할 수 있고, `tnt_bob`는 Bob Workspace만 접근할 수 있다. 격리는 OpenClaw 설정만이 아니라 Azure VM의 Linux 파일 권한(`chmod 700`)과 사용자별 경로 검증으로 강제되며, 최종 사용자 요청 경로에서는 타 테넌트 Workspace가 존재하지 않는 경로처럼 처리된다.
 
 ### 2. Azure VM 및 Workspace 준비
 
@@ -289,14 +292,19 @@ ls -ld /srv/openclaw-tenants/tnt_bob
 ls -la ~/openclaw-aaas/keys/
 ```
 
-Tenant 격리는 다음 명령으로 확인한다. Alice 계정으로 Bob Workspace에 접근하면 `Permission denied`가 발생해야 정상이다.
+Tenant 격리는 다음 방식으로 확인한다. 최종 요청 경로에서는 사용자 Workspace root가 자기 Tenant 하위로 고정되므로, Alice 컨텍스트에서 Bob 경로를 조회하면 `No such file or directory`가 발생해야 정상이다. 또한 Alice SSH Key로 Bob 계정에 접속하는 것도 실패해야 한다.
 
 ```bash
-sudo -u tnt_alice bash -lc 'ls /srv/openclaw-tenants/tnt_bob'
+# Alice 요청 컨텍스트에서 Bob 경로 조회 시도
+sudo -u tnt_alice bash -lc 'ls /srv/openclaw-tenants/tnt_alice/sandboxes/../tnt_bob'
+# expected: No such file or directory
 
+# Alice SSH Key로 Alice 계정 접속은 성공해야 함
 cp ~/openclaw-aaas/keys/openclaw_aaas_tnt_alice /tmp/test_alice
 chmod 600 /tmp/test_alice
 ssh -i /tmp/test_alice -o StrictHostKeyChecking=no tnt_alice@localhost 'whoami; pwd'
+
+# Alice SSH Key로 Bob 계정 접속은 실패해야 함
 ssh -i /tmp/test_alice -o StrictHostKeyChecking=no tnt_bob@localhost 'whoami' 2>&1 | head -5
 rm /tmp/test_alice
 ```
@@ -500,7 +508,7 @@ sudo find /srv/openclaw-tenants -type f -printf "%p (%U:%G mode=%m)\n"
 /srv/openclaw-tenants/tnt_bob/sandboxes/openclaw-ssh-agent-main-main-1b41619c/workspace/english.txt (1002:1002 mode=664)
 ```
 
-위 결과에서 session 디렉터리 이름이 같더라도 상위 Tenant 디렉터리가 `chmod 700`으로 보호되므로 Alice는 Bob의 Workspace에 들어갈 수 없고, Bob도 Alice의 Workspace에 들어갈 수 없다.
+위 결과에서 session 디렉터리 이름이 같더라도 상위 Tenant 디렉터리는 사용자별 접근 정책으로 보호되므로 Alice는 Bob의 Workspace 구조를 조회할 수 없고, Bob도 Alice의 Workspace 구조를 조회할 수 없다.
 
 ### 8. AaaS Gateway 및 Dashboard 확인
 
@@ -534,7 +542,12 @@ cd aaas-gateway
 bash scripts/smoke.sh
 ```
 
-Docker Compose로 `mock-llm`, `openclaw`, `gateway`를 한 번에 띄우는 경우에는 `aaas-gateway/.env` 파일이 필요하다. 시연 환경에서는 최소한 빈 `OPENAI_API_KEY=` 항목을 포함한 `.env`를 두고 실행하면 된다.
+Docker Compose로 `mock-llm`, `openclaw`, `gateway`를 한 번에 띄우는 경우에는 `aaas-gateway/.env` 파일이 필요하다. 시연 환경에서는 `.env.example`을 복사해서 사용하면 되고, Mock LLM만 사용할 때는 `OPENAI_API_KEY`를 비워둘 수 있다.
+
+```bash
+cd aaas-gateway
+cp .env.example .env
+```
 
 웹 Dashboard 환경을 실행하는 경우 브라우저에서 `http://localhost:5173`에 접속하여 Tenant별 요청 수, 성공/실패 횟수, 평균 응답 시간, 처리 결과를 확인한다. Dashboard는 운영자가 Gateway 요청 흐름과 Tenant별 사용량을 한눈에 보기 위한 보조 관리 화면으로 사용된다.
 
