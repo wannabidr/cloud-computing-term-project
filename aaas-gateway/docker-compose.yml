@@ -37,7 +37,7 @@ services:
     # Build from the OpenClaw repo you cloned alongside this project.
     # If OpenClaw ships a published image, you can replace `build:` with `image:` instead.
     build:
-      context: ../openclaw
+      context: ../external/openclaw
     container_name: aaas-openclaw
     depends_on:
       mock-llm:
