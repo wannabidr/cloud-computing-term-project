@@ -20,7 +20,7 @@ OpenClaw를 기반으로 여러 사용자가 하나의 클라우드 Sandbox 실�
 
 기존 OpenClaw는 Local-First 구조로 설계되어 Agent 실행 환경과 Workspace가 사용자 개인 PC에 종속된다. 따라서 여러 사용자가 하나의 Agent 환경을 공유하기 어렵고, Workspace 충돌이나 환경 불일치 문제가 발생할 수 있다.
 
-이를 해결하기 위해 Azure VM 상에 공용 Sandbox 실행 환경을 구축하고, 각 사용자에게 독립적인 Linux 계정과 Workspace를 제공하는 구조를 설계하였다. OpenClaw Core는 수정하지 않고 기존 SSH Sandbox Backend를 활용하여 Agent의 Tool 실행과 Workspace 작업을 클라우드로 오프로드하는 방식을 검증하였다.
+이를 해결하기 위해 Azure VM 상에 공용 Sandbox 실행 환경을 구축하고, 각 사용자에게 독립적인 Linux 계정과 Workspace를 제공하는 구조를 설계했다. OpenClaw Core는 수정하지 않고 기존 SSH Sandbox Backend를 활용하여 Agent의 Tool 실행과 Workspace 작업을 클라우드로 오프로드하는 방식을 검증했다.
 
 ## D. 프로젝트 필요성 소개
 
@@ -44,7 +44,7 @@ OpenClaw를 기반으로 여러 사용자가 하나의 클라우드 Sandbox 실�
 - 실행 환경 표준화: 공통 클라우드 런타임을 통한 재현성 확보
 - 운영 관리: 서비스 상태, 사용량, 장애 상황을 확인할 수 있는 관리 인터페이스
 
-본 프로젝트는 이러한 문제를 해결하기 위해 OpenClaw 기반 Agent 실행 구조를 클라우드 환경으로 확장하고, 멀티테넌트 Workspace와 Gateway 패턴을 결합한 AaaS 플랫폼을 설계 및 구현하였다. 특히 OpenClaw Core를 직접 수정하지 않고 기존 SSH Sandbox Backend를 활용하여, Local Gateway를 유지하면서도 Agent의 Tool 실행과 Workspace 작업을 Azure VM으로 오프로드할 수 있음을 검증했다는 점에 의의가 있다.
+본 프로젝트는 이러한 문제를 해결하기 위해 OpenClaw 기반 Agent 실행 구조를 클라우드 환경으로 확장하고, 멀티테넌트 Workspace와 Gateway 패턴을 결합한 AaaS 플랫폼을 설계 및 구현했다. 특히 OpenClaw Core를 직접 수정하지 않고 기존 SSH Sandbox Backend를 활용하여, Local Gateway를 유지하면서도 Agent의 Tool 실행과 Workspace 작업을 Azure VM으로 오프로드할 수 있음을 검증했다는 점에 의의가 있다.
 
 ## E. 관련 기술/논문/특허 조사 내용 소개
 
@@ -75,7 +75,7 @@ Microsoft Azure Architecture Center — learn.microsoft.com, 2023
 
 ### 3. OpenClaw
 
-OpenClaw는 AI Agent 실행을 지원하는 오픈소스 플랫폼이다. 본 프로젝트에서는 OpenClaw Core를 직접 수정하지 않고, 기존 SSH Sandbox Backend를 활용하여 로컬 Gateway에서 발생한 Agent Tool 실행을 Azure VM의 사용자별 Workspace로 전달하는 구조를 검증했다. 또한 웹 Dashboard와 AaaS Gateway에서는 Mock LLM, OpenAI API, OpenClaw 연동 경로를 함께 제공하여 백엔드 전환 가능성을 확인했다.
+OpenClaw는 AI Agent 실행을 지원하는 오픈소스 플랫폼이다. 본 프로젝트에서는 OpenClaw Core를 직접 수정하지 않고, 기존 SSH Sandbox Backend를 활용하여 로컬 Gateway에서 발생한 Agent Tool 실행을 Azure VM의 사용자별 Workspace로 전달하는 구조를 검증했다. 또한 웹 Dashboard와 AaaS Gateway에서는 OpenClaw 연동 경로를 함께 제공하여 백엔드 연동 확장 가능성을 확인했다.
 
 ### 4. API Gateway 및 인증/인가 패턴
 
@@ -100,9 +100,7 @@ Jones, M. et al., JSON Web Token (JWT), RFC 7519, IETF, 2015
 
 기존 OpenClaw는 Local-First 구조로 설계되어 Agent 실행 환경과 Workspace가 사용자 개인 PC에 종속된다. 이 경우 여러 사용자가 동일한 Agent 환경을 공유하기 어렵고, 파일 충돌, 환경 불일치, 사용자 간 데이터 노출 등의 문제가 발생할 수 있다.
 
-본 프로젝트는 OpenClaw Core를 수정하지 않고 기존 SSH Sandbox Backend를 활용하여 Azure VM 상에 공용 Sandbox 실행 환경을 구축하였다. 각 사용자는 독립적인 Linux 계정과 Workspace를 부여받으며, OS 권한을 이용하여 사용자 간 격리를 보장한다.
-
-또한 AaaS Gateway를 통해 인증, 인가, 요청 라우팅 및 로그 관리를 중앙화하여 다양한 AI Backend를 통합 관리할 수 있도록 설계하였다.
+본 프로젝트는 OpenClaw Core를 수정하지 않고 기존 SSH Sandbox Backend를 활용하여 Azure VM 상에 공용 Sandbox 실행 환경을 구축했다. 각 사용자는 독립적인 Linux 계정과 Workspace를 부여받으며, OS 권한을 이용하여 사용자 간 격리를 보장한다. 또한 AaaS Gateway를 통해 인증, 인가, 요청 라우팅 및 로그 관리를 중앙화하여 다양한 AI Backend를 통합 관리할 수 있도록 설계했다.
 
 ### 주요 기능
 
@@ -143,11 +141,10 @@ Gateway는 모든 AI 요청의 진입점 역할을 수행한다.
 
 - 사용자의 신원 검증 (Authentication)
 - 사용자의 접근 권한 확인 (Authorization)
-- 요청 대상 Backend를 동적 선택 - Mock LLM, OpenAI API, OpenClaw Agent
-- 로깅
+- 로깅 및 라우팅
 
-### 3. 조직 관리형 AI Agent 선택 구조
-조직(VM 운영자)이 업무에 최적화된 AI 모델을 선정하고, 해당 모델의 API 키를 테넌트에게 발급하는 구조를 채택하였다. 테넌트는 조직으로부터 할당받은 키를 사용하여 OpenClaw Agent를 통해 클라우드 Workspace에서 작업을 수행한다.
+#### 3. 조직 관리형 AI Agent 선택 구조
+조직(VM 운영자)이 업무에 최적화된 AI 모델을 선정하고, 해당 모델의 API 키를 테넌트에게 발급하는 구조를 채택했다. 테넌트는 조직으로부터 할당받은 키를 사용하여 OpenClaw Agent를 통해 클라우드 Workspace에서 작업을 수행한다.
 
 이 구조를 통해 다음을 실현할 수 있다.
 
@@ -156,11 +153,9 @@ Gateway는 모든 AI 요청의 진입점 역할을 수행한다.
 - 키 발급 및 회수를 통한 접근 권한 제어
 - 향후 다양한 AI Backend(상용 LLM, 오픈소스 모델 등)로의 확장 가능성 확보
 
-또한 검증 목적으로 외부 API Key 없이 동작을 확인할 수 있는 Mock LLM Backend와, 실제 LLM 응답을 확인하기 위한 OpenAI API Backend도 함께 제공하여 시스템의 유연성을 검증하였다.
-
 #### 4. SSH 기반 클라우드 Sandbox
 
-본 프로젝트는 OpenClaw의 기존 SSH Backend를 활용하여 Agent의 Tool 실행과 Workspace 파일 작업이 Azure VM에서 수행되도록 구성하였다. 사용자는 자신의 PC에서 OpenClaw Gateway를 실행하지만, Sandbox로 라우팅된 명령과 파일 작업은 Azure VM 내부의 Tenant Workspace에서 수행된다.
+본 프로젝트는 OpenClaw의 기존 SSH Backend를 활용하여 Agent의 Tool 실행과 Workspace 파일 작업이 Azure VM에서 수행되도록 구성했다. 사용자는 자신의 PC에서 OpenClaw Gateway를 실행하지만, Sandbox로 라우팅된 명령과 파일 작업은 Azure VM 내부의 Tenant Workspace에서 수행된다.
 
 이를 통해 다음과 같은 효과를 얻을 수 있다.
 
@@ -171,9 +166,9 @@ Gateway는 모든 AI 요청의 진입점 역할을 수행한다.
 
 또한 새로운 사용자는 SSH Key 발급과 Workspace 생성만으로 별도 VM 재시작 없이 즉시 서비스를 이용할 수 있다.
 
-#### 4. Dashboard 기반 요청 관리
+#### 5. Dashboard 기반 요청 관리
 
-Dashboard에서는 등록된 테넌트(userA, userB 등)의 사용 현황을 시각적으로 확인할 수 있으며, 각 사용자의 요청 수(Requests), 성공 횟수(Success), 실패 횟수(Failed), 평균 응답 시간(Average Duration) 등의 정보를 실시간으로 제공한다.
+Dashboard에서는 등록된 테넌트(userA, userB 등)의 사용 현황을 시각적으로 확인할 수 있으며, 각 사용자의 요청 수(Requests), 성공 횟수(Success), 실패 횟수(Failed), 평균 응답 시간(Average Duration) 등의 정보를 실시간으로 제공한다. 또한 테넌트별 누적 토큰 사용량을 집계하여 사이드바에 실시간으로 표시함으로써, 운영자가 각 테넌트의 AI 모델 사용량을 한눈에 파악할 수 있도록 구현했다.
 
 - 각 사용자의 서비스 이용 현황을 실시간으로 집계 후 시각화
 - 요청 성공 및 실패 수를 구분하여 표시
@@ -182,29 +177,29 @@ Dashboard에서는 등록된 테넌트(userA, userB 등)의 사용 현황을 시
 
 현재 Dashboard는 프로젝트 시연을 목적으로 개발되었으며 요청 통계, 사용자 정보, Gateway 상태 정보 등을 하나의 화면에서 통합 제공하는 형태로 구현되어 있다. 따라서 일부 기능은 독립적인 모듈로 완전히 분리되지 않고 하나의 대시보드 내부에 통합되어 있으며, 향후 서비스 고도화 과정에서 기능별 화면 분리 및 세분화가 가능하도록 설계했다.
 
-### 5. 검증 결과
+### 6. 검증 결과
 
-본 프로젝트에서는 구현 결과가 목표한 멀티테넌트 AaaS 구조로 동작하는지 확인하기 위해 Alice와 Bob 두 사용자를 기준으로 테스트를 수행하였다.
+본 프로젝트에서는 구현 결과가 목표한 멀티테넌트 AaaS 구조로 동작하는지 확인하기 위해 Alice와 Bob 두 사용자를 기준으로 테스트를 수행했다.
 
 주요 검증 결과는 다음과 같다.
 
-- Azure VM에 `tnt_alice`, `tnt_bob` 사용자 계정과 tenant별 Workspace가 생성됨을 확인했다.
+- Azure VM에 `tnt_alice`, `tnt_bob` 사용자 계정과 Tenant별 Workspace가 생성됨을 확인했다.
 - Alice의 SSH Key는 Alice 계정에만 접속할 수 있고, Bob의 SSH Key는 Bob 계정에만 접속할 수 있음을 확인했다.
 - Alice 계정에서 Bob Workspace에 접근하거나 Bob 계정에서 Alice Workspace에 접근할 경우 `Permission denied`가 발생하여 OS 수준의 격리가 동작함을 확인했다.
-- OpenClaw SSH Sandbox Backend를 통해 Azure VM의 tenant별 Workspace에서 파일 생성과 명령 실행이 가능함을 확인했다.
-- OpenAI OAuth 기반 Agent 실행에서도 `sandbox_exec` 경로를 사용할 경우 결과 파일이 Azure VM의 tenant Workspace에 생성됨을 확인했다.
+- OpenClaw SSH Sandbox Backend를 통해 Azure VM의 Tenant별 Workspace에서 파일 생성과 명령 실행이 가능함을 확인했다.
+- OpenAI OAuth 기반 Agent 실행에서도 `sandbox_exec` 경로를 사용할 경우 결과 파일이 Azure VM의 Tenant Workspace에 생성됨을 확인했다.
 
-이를 통해 본 프로젝트의 핵심 목표였던 “여러 사용자가 각자의 Local Gateway를 사용하면서도 클라우드의 공용 Sandbox Host를 통해 독립적인 Workspace에서 Agent 작업을 수행하는 구조”가 PoC 수준에서 가능함을 검증하였다.
+이를 통해 본 프로젝트의 핵심 목표였던 “여러 사용자가 각자의 Local Gateway를 사용하면서도 클라우드의 공용 Sandbox Host를 통해 독립적인 Workspace에서 Agent 작업을 수행하는 구조”가 PoC 수준에서 가능함을 검증했다.
 
-### 6. 중간 보고서 대비 최종 결과물 변경 사항
+### 7. 중간 보고서 대비 최종 결과물 변경 사항
 중간 보고서 시점과 최종 결과물 사이에는 두 가지 주요 변경이 있었다.
 1) OpenClaw 연동 방식 변경
-중간 보고서 시점에는 OpenClaw SSH Sandbox Backend와의 연동에 어려움이 있어, Gateway의 백엔드 선택지로 Mock LLM, OpenAI API, OpenClaw Agent 세 가지를 병렬로 두는 구조를 설계하였다. OpenClaw 연동이 불안정한 상황에서도 시스템 전체 동작을 검증하기 위한 대안적 접근이었다.
+중간 보고서 시점에는 OpenClaw SSH Sandbox Backend와의 연동에 어려움이 있어, Gateway의 백엔드 선택지로 Mock LLM, OpenAI API, OpenClaw Agent 세 가지를 병렬로 두는 구조를 설계했다. OpenClaw 연동이 불안정한 상황에서도 시스템 전체 동작을 검증하기 위한 대안적 접근이었다.
 이후 OpenClaw SSH Sandbox Backend 연동 문제를 해결하여 최종 결과물에서는 OpenClaw Agent가 정식 실행 경로로 동작하게 되었다.
-2) 모니터링 Dashboard 추가
-중간 보고서 시점에는 모니터링 기능이 포함되지 않았으나 이후 테넌트별 요청 수, 성공/실패 횟수, 평균 응답 시간을 실시간으로 시각화하는 Dashboard가 추가되었다. 이를 통해 운영자가 시스템 상태와 각 테넌트의 사용 현황을 한눈에 파악할 수 있게 되었다.
+2) 실시간 모니터링 Dashboard 추가
+중간 보고서 시점에는 모니터링 기능이 포함되지 않았으나 이후 테넌트별 요청 수, 성공/실패 횟수, 평균 응답 시간을 실시간으로 시각화하는 Dashboard가 추가되었다. 이를 통해 운영자가 시스템 상태와 각 테넌트의 사용 현황을 한눈에 파악할 수 있게 되었다. 또한 중간 보고서까지는 Docker Compose로 Gateway를 띄우고 웹 UI에서 백엔드를 선택하는 구조였으나, 최종 결과물에서는 Docker 없이 각 테넌트가 로컬에서 OpenClaw Gateway를 직접 실행하고 SSH를 통해 Azure VM의 독립 Workspace에 접속하는 구조로 목적과 아키텍처가 전환되었다.
 
-## 7. 향후 발전 방향
+### 8. 향후 발전 방향
 
 본 프로젝트는 멀티테넌트 환경에서 AI Agent를 서비스 형태로 제공하기 위한 핵심 기능을 구현하는 데 중점을 두었다. 향후에는 다음과 같은 기능을 추가하여 보다 완성도 높은 AaaS(Agent as a Service) 플랫폼으로 발전시킬 수 있다.
 
@@ -230,7 +225,7 @@ Dashboard에서는 등록된 테넌트(userA, userB 등)의 사용 현황을 시
 
 ### 2. OpenClaw SSH Sandbox 사용 방법
 
-OpenClaw 연동을 확인하려면 사용자별 SSH Key와 OpenClaw 설정이 필요하다. 각 사용자는 자신의 tenant 계정에 해당하는 SSH Key를 사용해야 하며, 다른 사용자의 Key나 Workspace 경로를 사용해서는 안 된다.
+OpenClaw 연동을 확인하려면 사용자별 SSH Key와 OpenClaw 설정이 필요하다. 각 사용자는 자신의 Tenant 계정에 해당하는 SSH Key를 사용해야 하며, 다른 사용자의 Key나 Workspace 경로를 사용해서는 안 된다.
 
 설정의 핵심 항목은 다음과 같다.
 
@@ -254,18 +249,46 @@ OpenClaw 연동을 확인하려면 사용자별 SSH Key와 OpenClaw 설정이 �
 }
 ```
 
-Alice 사용자는 `tnt_alice` 계정과 Alice Workspace를 사용하고, Bob 사용자는 `tnt_bob` 계정과 Bob Workspace를 사용한다. 각 tenant 디렉터리는 Linux 권한으로 분리되어 있으므로 다른 사용자의 Workspace에 접근하면 `Permission denied`가 발생해야 한다.
+Alice 사용자는 `tnt_alice` 계정과 Alice Workspace를 사용하고, Bob 사용자는 `tnt_bob` 계정과 Bob Workspace를 사용한다. 각 Tenant 디렉터리는 Linux 권한으로 분리되어 있으므로 다른 사용자의 Workspace에 접근하면 `Permission denied`가 발생해야 한다.
 
 ### 3. 테스트 확인 방법
 
-개발 결과가 정상적으로 동작하는지 확인하려면 다음 항목을 점검한다.
+터미널 4개를 열어 각각 아래 명령어를 실행한다.
 
-- Dashboard에서 Prompt를 전송했을 때 선택한 Backend로 요청이 전달되는지 확인한다.
-- Mock LLM Backend가 외부 API 없이 응답을 반환하는지 확인한다.
-- OpenAI API Backend가 실제 모델 응답을 반환하는지 확인한다.
-- OpenClaw SSH Sandbox Backend 사용 시 결과 파일이 Azure VM의 tenant별 Workspace에 생성되는지 확인한다.
-- Alice 계정에서 Bob Workspace에 접근할 수 없고, Bob 계정에서 Alice Workspace에 접근할 수 없는지 확인한다.
+터미널 1 — Alice OpenClaw Gateway:
+```
+cd external/openclaw
+node openclaw.mjs --profile alice gateway run
+```
+
+터미널 2 — Bob OpenClaw Gateway:
+```
+cd external/openclaw
+node openclaw.mjs --profile bob gateway run
+```
+
+터미널 3 — AaaS Gateway:
+```
+cd aaas-gateway
+npm run dev
+```
+
+터미널 4 — 웹 Dashboard:
+```
+cd aaas-ui
+npm run dev
+```
+
+브라우저에서 `http://localhost:5173` 접속 후 아래 항목을 점검한다.
+
+**확인해야 할 항목**
+- Dashboard에서 Prompt를 전송했을 때 요청이 전달되는지 확인한다.
+- OpenClaw SSH Sandbox Backend 사용 시 결과 파일이 Azure VM의 Tenant별 Workspace에 생성되는지 확인한다.
+- Alice 계정에서 Bob Workspace에 접근할 수 없고, Bob 계정에서 Alice Workspace에 접근할 수 없는지 확인한다. (OpenClaw SSH Sandbox 기준)
 - 요청 기록과 처리 결과가 Dashboard 또는 로그에서 확인되는지 점검한다.
+
+### 성공 예시 화면 (대시보드)
+![Dashboard](./images/dashboard.png)
 
 ## H. 개발 결과물의 활용방안 소개
 
@@ -277,20 +300,20 @@ Alice 사용자는 `tnt_alice` 계정과 Alice Workspace를 사용하고, Bob �
 - 기업 내부 AI Agent 플랫폼: 부서 또는 사용자별 Workspace를 분리하고, 중앙 Gateway에서 인증, 권한, 로그를 관리할 수 있다.
 - 교육용 AI 실습 환경: 학생별로 격리된 Workspace를 제공하여 동일한 실습 환경에서 Agent와 LLM 활용 실험을 수행할 수 있다.
 - 개발 조직의 표준 Agent 실행 환경: 팀 공통 의존성, 도구, 보안 정책을 갖춘 클라우드 Workspace를 제공하여 재현성 있는 개발 자동화를 지원할 수 있다.
-- 멀티테넌트 SaaS 플랫폼 실습: Gateway 패턴, 인증/인가, tenant isolation, backend routing, 사용량 모니터링을 통합적으로 학습할 수 있다.
-- 클라우드 기반 AI 서비스 연구: tenant별 자원 사용량, Agent 실행 패턴, 격리 수준, 비용 구조를 분석하는 연구 기반으로 활용할 수 있다.
+- 멀티테넌트 SaaS 플랫폼 실습: Gateway 패턴, 인증/인가, Tenant isolation, backend routing, 사용량 모니터링을 통합적으로 학습할 수 있다.
+- 클라우드 기반 AI 서비스 연구: Tenant별 자원 사용량, Agent 실행 패턴, 격리 수준, 비용 구조를 분석하는 연구 기반으로 활용할 수 있다.
 
-다만 실제 사업 수준의 AaaS로 발전시키기 위해서는 추가 보완이 필요하다. 특히 내부 `agent.md`, private skill, 시스템 프롬프트와 같은 Agent 구성 정보가 사용자에게 노출되지 않도록 Control Plane과 Sandbox Runtime을 분리해야 한다. 사용자의 Workspace와 Shell Tool은 tenant 디렉터리만 접근할 수 있어야 하며, 내부 Agent 설정과 운영 정책은 별도의 서비스 계정 또는 서버 측 정책으로 보호해야 한다. 또한 사용량 기반 과금, Workspace 백업, 장애 복구, 감사 로그, Secret 관리, 장기 실행 작업 정리 기능이 추가되어야 한다.
+다만 실제 사업 수준의 AaaS로 발전시키기 위해서는 추가 보완이 필요하다. 특히 내부 `agent.md`, private skill, 시스템 프롬프트와 같은 Agent 구성 정보가 사용자에게 노출되지 않도록 Control Plane과 Sandbox Runtime을 분리해야 한다. 사용자의 Workspace와 Shell Tool은 Tenant 디렉터리만 접근할 수 있어야 하며, 내부 Agent 설정과 운영 정책은 별도의 서비스 계정 또는 서버 측 정책으로 보호해야 한다. 또한 사용량 기반 과금, Workspace 백업, 장애 복구, 감사 로그, Secret 관리, 장기 실행 작업 정리 기능이 추가되어야 한다.
 
 ## I. AI 활용
 
-본 프로젝트에서는 ChatGPT(OpenAI)를 개발 보조 도구로 활용하여 코드 작성, 시스템 설계 검토, 문서 작성 및 디버깅을 수행했다.
+본 프로젝트에서는 ChatGPT(OpenAI) 및 Claude AI를 개발 보조 도구로 활용하여 코드 작성, 시스템 설계 검토, 문서 작성 및 디버깅을 수행했다.
 
 AI가 활용된 영역은 다음과 같다.
 
 - Docker Compose 환경 구성 및 컨테이너 설정 보조
 - README 및 보고서 작성 보조
-- 오류 분석 및 디버깅
-- 보고서 기반 다이어그램 및 설계도의 틀 생성
+- 보고서 기반 다이어그램 및 설계도의 초안 생성
+- 개발 과정에서의 오류 분석 및 단계별 디버깅 보조
 
 전체 코드 기준 약 30~40% 수준에서 AI의 도움을 받았으며, 시스템 구조 설계, 기능 구현, 테스트 및 통합 과정은 팀원들이 직접 수행했다.
