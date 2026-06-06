@@ -90,7 +90,8 @@ export default function App() {
 
   const [runtimeStatus, setRuntimeStatus] = useState("openclaw");
   const [message, setMessage] = useState("");
-  const [chatHistory, setChatHistory] = useState([]);
+  const [chatHistories, setChatHistories] = useState({});
+const chatHistory = chatHistories[selectedUser] ?? [];
   const [isRunning, setIsRunning] = useState(false);
 
   const selectedUserRef = useRef(selectedUser);
@@ -114,7 +115,6 @@ export default function App() {
 
   useEffect(() => {
     if (selectedUser) {
-      setChatHistory([]);
       setRuntimeStatus("openclaw");
       loadUserData(selectedUser);
     }
@@ -178,7 +178,10 @@ async function loadVmStatus() {
   setMessage("");
   const ts = new Date().toLocaleTimeString();
 
-  setChatHistory((h) => [...h, { role: "user", content: userMsg, ts }]);
+  setChatHistories((prev) => ({
+    ...prev,
+    [selectedUser]: [...(prev[selectedUser] ?? []), { role: "user", content: userMsg, ts }]
+  }));
   setIsRunning(true);
   setRuntimeStatus("openclaw");
 
@@ -212,27 +215,19 @@ async function loadVmStatus() {
       data.message ??
       JSON.stringify(data, null, 2);
 
-    setChatHistory((h) => [
-      ...h,
-      {
-        role: "assistant",
-        content: reply,
-        ts: new Date().toLocaleTimeString(),
-      },
-    ]);
+    setChatHistories((prev) => ({
+      ...prev,
+      [selectedUser]: [...(prev[selectedUser] ?? []), { role: "assistant", content: reply, ts: new Date().toLocaleTimeString() }]
+    }));
 
     await loadUsage();
     await loadUserData(selectedUser);
   } catch (err) {
     setRuntimeStatus("error");
-    setChatHistory((h) => [
-      ...h,
-      {
-        role: "assistant",
-        content: String(err),
-        ts: new Date().toLocaleTimeString(),
-      },
-    ]);
+    setChatHistories((prev) => ({
+      ...prev,
+      [selectedUser]: [...(prev[selectedUser] ?? []), { role: "assistant", content: String(err), ts: new Date().toLocaleTimeString() }]
+    }));
   } finally {
     setIsRunning(false);
   }

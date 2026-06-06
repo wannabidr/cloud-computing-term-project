@@ -208,4 +208,47 @@ usage[tenant].total_tokens += Number(log.token_count ?? 0);
       tree: await readTree(targetPath),
     };
   });
+
+app.get("/admin/vm-status", async () => {
+  try {
+    const { NodeSSH } = await import("node-ssh");
+    const ssh = new NodeSSH();
+    await ssh.connect({
+      host: process.env.VM_SSH_HOST ?? "20.41.117.124",
+      username: process.env.VM_SSH_USER ?? "azureuser",
+      privateKeyPath: process.env.VM_SSH_KEY ?? "C:/Users/Thadar/Downloads/vm1_key.pem",
+    });
+
+    const hostname = (await ssh.execCommand("hostname")).stdout.trim();
+    const uptime = (await ssh.execCommand("uptime -p")).stdout.trim();
+    const memory = (await ssh.execCommand("free -h | awk 'NR==2{print $3\"/\"$2}'")).stdout.trim();
+    const rootDisk = (await ssh.execCommand("df -h / | awk 'NR==2{print $3\"/\"$2}'")).stdout.trim();
+    const tenantDisk = (await ssh.execCommand("df -h /srv/openclaw-tenants | awk 'NR==2{print $3\"/\"$2}'")).stdout.trim();
+    const tenantFiles = (await ssh.execCommand("find /srv/openclaw-tenants -type f | wc -l")).stdout.trim();
+
+    ssh.dispose();
+
+    return {
+      connected: true,
+      host: process.env.VM_SSH_HOST ?? "20.41.117.124",
+      hostname,
+      uptime,
+      memory,
+      root_disk: rootDisk,
+      tenant_disk: tenantDisk,
+      tenant_files: tenantFiles,
+    };
+  } catch (err) {
+    return {
+      connected: false,
+      host: process.env.VM_SSH_HOST ?? "20.41.117.124",
+      hostname: "",
+      uptime: "",
+      memory: "",
+      root_disk: "",
+      tenant_disk: "",
+      tenant_files: "",
+    };
+  }
+});
 }
