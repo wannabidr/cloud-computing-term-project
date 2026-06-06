@@ -37,14 +37,22 @@ class Stats {
   }
 
   snapshot() {
-    const out: Record<string, { requests: number; avg_duration_ms: number; containers: number }> = {};
+    const out: Record<
+      string,
+      {
+        requests: number;
+        avg_duration_ms: number;
+        containers: number;
+        total_tokens: number;
+      }
+    > = {};
     for (const [k, v] of this.perUser.entries()) {
       out[k] = {
-  requests: v.requests,
-  avg_duration_ms: v.requests ? Math.round(v.totalDurationMs / v.requests) : 0,
-  containers: v.containers,
-  total_tokens: v.totalTokens,
-};
+        requests: v.requests,
+        avg_duration_ms: v.requests ? Math.round(v.totalDurationMs / v.requests) : 0,
+        containers: v.containers,
+        total_tokens: v.totalTokens,
+      };
     }
     return out;
   }

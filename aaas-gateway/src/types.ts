@@ -37,6 +37,7 @@ export interface RequestLogEntry {
   auth_profile_id: string;
   http_status: number;
   duration_ms: number;
+  token_count?: number;
   error?: string;
 }
 

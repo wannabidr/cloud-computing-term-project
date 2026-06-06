@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { readFile, readdir, stat } from "node:fs/promises";
+import { basename } from "node:path";
 import { resolve, join } from "node:path";
+import { Socket } from "node:net";
 import { config } from "../config.js";
 import { stats, writeRequestLog } from "../services/logger.js";
 import { tenantStore } from "../tenants.js";
@@ -14,6 +16,26 @@ type Usage = {
   total_tokens: number;
   agents: Record<string, number>;
 };
+
+function checkTcp(host: string, port: number, timeoutMs = 1000): Promise<boolean> {
+  return new Promise((resolveCheck) => {
+    const socket = new Socket();
+    let settled = false;
+
+    const finish = (connected: boolean) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolveCheck(connected);
+    };
+
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => finish(true));
+    socket.once("timeout", () => finish(false));
+    socket.once("error", () => finish(false));
+    socket.connect(port, host);
+  });
+}
 
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   app.get("/healthz", async () => ({ ok: true }));
@@ -40,22 +62,22 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         const duration = Number(log.duration_ms ?? 0);
 
         if (!usage[tenant]) {
-  usage[tenant] = {
-    tenant,
-    requests: 0,
-    success: 0,
-    failed: 0,
-    avg_duration_ms: 0,
-    total_tokens: 0,
-    totalDuration: 0,
-    agents: {},
-  };
-}
+          usage[tenant] = {
+            tenant,
+            requests: 0,
+            success: 0,
+            failed: 0,
+            avg_duration_ms: 0,
+            total_tokens: 0,
+            totalDuration: 0,
+            agents: {},
+          };
+        }
 
         usage[tenant].requests += 1;
         usage[tenant].totalDuration += duration;
         usage[tenant].agents[agent] = (usage[tenant].agents[agent] ?? 0) + 1;
-usage[tenant].total_tokens += Number(log.token_count ?? 0);
+        usage[tenant].total_tokens += Number(log.token_count ?? 0);
 
         if (status >= 200 && status < 300) usage[tenant].success += 1;
         else usage[tenant].failed += 1;
@@ -77,7 +99,27 @@ usage[tenant].total_tokens += Number(log.token_count ?? 0);
       };
     }
   });
-    app.post("/admin/dev/usage/:userId", async (req) => {
+
+  app.get("/admin/vm-status", async () => {
+    const host = process.env.AZURE_VM_HOST ?? "20.41.117.124";
+    const port = Number(process.env.AZURE_VM_PORT ?? "22");
+    const connected = await checkTcp(host, port);
+
+    return {
+      connected,
+      host,
+      port,
+      hostname: connected ? "azure-openclaw-sandbox" : "unreachable",
+      uptime: connected ? "reachable" : "offline or blocked",
+      memory: "-",
+      root_disk: "-",
+      tenant_disk: "-",
+      tenant_files: "-",
+      checked_at: new Date().toISOString(),
+    };
+  });
+
+  app.post("/admin/dev/usage/:userId", async (req) => {
     const { userId } = req.params as { userId: string };
     const ts = new Date().toISOString();
 
@@ -100,7 +142,8 @@ usage[tenant].total_tokens += Number(log.token_count ?? 0);
       message: "usage log written",
     };
   });
-    app.get("/admin/users/:id/requests", async (req) => {
+
+  app.get("/admin/users/:id/requests", async (req) => {
     const { id } = req.params as { id: string };
     const { limit = "20" } = req.query as { limit?: string };
 
@@ -166,7 +209,23 @@ usage[tenant].total_tokens += Number(log.token_count ?? 0);
     const workspaceRoot =
       process.env.WORKSPACE_ROOT ?? "C:/cloud/repo/downloads";
 
-    const targetPath = join(workspaceRoot, tenantDir);
+    const tenant = tenantStore.findById(id);
+    const candidates = [
+      join(workspaceRoot, tenantDir),
+      tenant?.workspace_path ? join(workspaceRoot, basename(tenant.workspace_path)) : undefined,
+      join(workspaceRoot, id),
+    ].filter((path): path is string => Boolean(path));
+
+    let targetPath = candidates[0];
+    for (const candidate of [...new Set(candidates)]) {
+      try {
+        const info = await stat(candidate);
+        if (info.isDirectory()) {
+          targetPath = candidate;
+          break;
+        }
+      } catch {}
+    }
 
     async function readTree(path: string): Promise<any[]> {
       try {

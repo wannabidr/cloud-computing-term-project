@@ -213,35 +213,171 @@ Dashboard에서는 등록된 테넌트(userA, userB 등)의 사용 현황을 시
 
 ## G. 개발 결과물을 사용하는 방법 소개
 
-본 프로젝트의 결과물은 웹 Dashboard를 통한 AaaS Gateway 테스트와 OpenClaw SSH Sandbox 연동 테스트로 나누어 사용할 수 있다.
+본 프로젝트의 최종 시연은 각 사용자가 자신의 PC에서 OpenClaw Gateway를 실행하고, 실제 Shell/File Tool 실행은 Azure VM의 사용자별 SSH Sandbox Workspace에서 수행되는 방식으로 진행했다. 웹 Dashboard와 AaaS Gateway는 요청 흐름과 사용량을 관찰하기 위한 보조 시연 경로이며, 핵심 검증은 `backend: "ssh"`를 사용하는 OpenClaw Sandbox 연동이다.
 
-### 1. 웹 Dashboard 사용 방법
+### 1. 시연 환경 개요
 
-1. 사용자는 웹 Dashboard에 접속한다.
-2. 사용할 사용자 또는 Tenant를 선택한다.
-3. Prompt 입력 창에 Agent에게 요청할 작업을 입력한다.
-4. 요청을 전송하면 AaaS Gateway가 인증, 인가, 라우팅, 로그 기록을 수행한다.
-5. Dashboard에서 AI 응답과 요청 처리 기록을 확인한다.
+시연에 사용한 Azure VM은 `20.41.117.124`이며, VM 운영자 계정은 `azureuser`이다. Tenant는 Alice와 Bob 두 명으로 구성했다.
 
-### 2. OpenClaw SSH Sandbox 사용 방법
+```text
+Azure VM: 20.41.117.124
+운영자 계정: azureuser
+Tenant 계정:
+  - tnt_alice
+  - tnt_bob
+Workspace root:
+  - /srv/openclaw-tenants/tnt_alice/sandboxes
+  - /srv/openclaw-tenants/tnt_bob/sandboxes
+```
 
-OpenClaw 연동을 확인하려면 사용자별 SSH Key와 OpenClaw 설정이 필요하다. 각 사용자는 자신의 Tenant 계정에 해당하는 SSH Key를 사용해야 하며, 다른 사용자의 Key나 Workspace 경로를 사용해서는 안 된다.
+각 Tenant는 서로 다른 Linux 계정과 SSH Key를 사용한다. `tnt_alice`는 Alice Workspace만 접근할 수 있고, `tnt_bob`는 Bob Workspace만 접근할 수 있다. 격리는 OpenClaw 설정만이 아니라 Azure VM의 Linux 파일 권한(`chmod 700`)으로 강제된다.
 
-설정의 핵심 항목은 다음과 같다.
+### 2. Azure VM 및 Workspace 준비
 
-```json5
+먼저 운영자가 Azure VM에 접속한다.
+
+```bash
+ssh -i "C:\Users\siha\Downloads\vm1_key.pem" azureuser@20.41.117.124
+```
+
+VM에 연결된 데이터 디스크를 `/srv/openclaw-tenants`에 마운트하고, 재부팅 후에도 유지되도록 `/etc/fstab`에 등록한다.
+
+```bash
+lsblk
+sudo parted /dev/sda --script mklabel gpt mkpart primary ext4 0% 100%
+sudo mkfs.ext4 -F /dev/sda1
+sudo mkdir -p /srv/openclaw-tenants
+sudo mount /dev/sda1 /srv/openclaw-tenants
+
+UUID=$(sudo blkid -s UUID -o value /dev/sda1)
+echo "UUID=$UUID  /srv/openclaw-tenants  ext4  defaults,nofail  0  2" | sudo tee -a /etc/fstab
+sudo mount -a
+sudo chmod 755 /srv/openclaw-tenants
+sudo chown root:root /srv/openclaw-tenants
+```
+
+이후 Agent 실행에 필요한 기본 도구를 설치한다.
+
+```bash
+sudo apt update
+sudo apt -y upgrade
+sudo apt -y install bash python3 python3-pip python3-venv git curl jq ripgrep openssh-server ca-certificates build-essential
+```
+
+### 3. Tenant 프로비저닝
+
+운영자 PC에서 프로비저닝 입력 파일인 `tenants.json`과 Tenant 생성 스크립트인 `provision-tenants.sh`를 VM으로 전송한다. 두 파일은 Azure VM에 생성할 Tenant 목록과 Linux 계정/Workspace/SSH Key 생성 절차를 담은 운영자용 파일이다.
+
+```powershell
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" tenants.json azureuser@20.41.117.124:~/tenants.json
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" .\scripts\provision-tenants.sh azureuser@20.41.117.124:~/provision-tenants.sh
+```
+
+VM에서 프로비저닝 스크립트를 실행하면 `tnt_alice`, `tnt_bob` Linux 계정, Tenant별 Workspace, Tenant별 SSH Key가 생성된다.
+
+```bash
+mkdir -p ./openclaw-aaas
+mv ./tenants.json ./openclaw-aaas/
+mv ./provision-tenants.sh ./openclaw-aaas/
+cd ./openclaw-aaas
+sudo VM_HOST=20.41.117.124 ./provision-tenants.sh
+
+id tnt_alice
+id tnt_bob
+ls -ld /srv/openclaw-tenants/tnt_alice
+ls -ld /srv/openclaw-tenants/tnt_bob
+ls -la ~/openclaw-aaas/keys/
+```
+
+Tenant 격리는 다음 명령으로 확인한다. Alice 계정으로 Bob Workspace에 접근하면 `Permission denied`가 발생해야 정상이다.
+
+```bash
+sudo -u tnt_alice bash -lc 'ls /srv/openclaw-tenants/tnt_bob'
+
+cp ~/openclaw-aaas/keys/openclaw_aaas_tnt_alice /tmp/test_alice
+chmod 600 /tmp/test_alice
+ssh -i /tmp/test_alice -o StrictHostKeyChecking=no tnt_alice@localhost 'whoami; pwd'
+ssh -i /tmp/test_alice -o StrictHostKeyChecking=no tnt_bob@localhost 'whoami' 2>&1 | head -5
+rm /tmp/test_alice
+```
+
+### 4. 사용자 PC에 SSH Key와 OpenClaw 설정 배포
+
+운영자는 VM에서 생성된 Tenant Key와 OpenClaw 설정 snippet을 로컬 PC로 회수한다.
+
+```powershell
+cd C:\cloud\repo
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/keys/ .\keys-from-vm\
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/generated/ .\generated-from-vm\
+
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/keys/openclaw_aaas_tnt_alice .\keys\
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/keys/openclaw_aaas_tnt_bob .\keys\
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/generated/openclaw-config-tnt_alice.json5 .\generated\
+scp -i "C:\Users\siha\Downloads\vm1_key.pem" -r azureuser@20.41.117.124:~/openclaw-aaas/generated/openclaw-config-tnt_bob.json5 .\generated\
+```
+
+사용자 PC에서는 자신에게 배정된 Private Key를 `~/.ssh`에 설치하고 권한을 제한한다. Windows 기준 예시는 다음과 같다.
+
+```powershell
+New-Item -ItemType Directory -Path $env:USERPROFILE\.ssh -Force | Out-Null
+Copy-Item C:\cloud\repo\keys\openclaw_aaas_tnt_alice $env:USERPROFILE\.ssh\
+Copy-Item C:\cloud\repo\keys\openclaw_aaas_tnt_bob $env:USERPROFILE\.ssh\
+
+foreach ($k in 'openclaw_aaas_tnt_alice','openclaw_aaas_tnt_bob') {
+    $path = "$env:USERPROFILE\.ssh\$k"
+    icacls $path /inheritance:r | Out-Null
+    icacls $path /grant:r "${env:USERNAME}:R" | Out-Null
+}
+
+ssh-keyscan -t ed25519,rsa 20.41.117.124 2>$null | Add-Content -Encoding ASCII $env:USERPROFILE\.ssh\known_hosts
+ssh -o StrictHostKeyChecking=yes -i $env:USERPROFILE\.ssh\openclaw_aaas_tnt_alice tnt_alice@20.41.117.124 "whoami"
+```
+
+### 5. OpenClaw 설치 및 Profile 설정
+
+OpenClaw 저장소에서 의존성을 설치하고 빌드한다.
+
+```powershell
+cd C:\cloud\repo\external\openclaw
+corepack enable
+corepack prepare --activate
+nvm use 22
+pnpm install
+pnpm build
+node .\openclaw.mjs --version
+```
+
+실행 편의를 위해 PowerShell 함수로 `openclaw` 명령을 등록한다.
+
+```powershell
+if (-not (Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force }
+if (-not (Select-String -Path $PROFILE -Pattern 'function openclaw' -Quiet)) {
+    Add-Content $PROFILE 'function openclaw { node C:\cloud\repo\external\openclaw\openclaw.mjs @args }'
+}
+function openclaw { node C:\cloud\repo\external\openclaw\openclaw.mjs @args }
+openclaw --version
+```
+
+Alice와 Bob은 각각 독립된 OpenClaw profile을 사용한다. 설정의 핵심은 Sandbox backend를 `ssh`로 지정하고, Tenant별 SSH target과 Workspace root를 분리하는 것이다.
+
+Alice 설정:
+
+```json
 {
-  agents: {
-    defaults: {
-      sandbox: {
-        mode: "all",
-        backend: "ssh",
-        scope: "session",
-        workspaceAccess: "rw",
-        ssh: {
-          target: "tnt_alice@<azure-vm-ip>:22",
-          workspaceRoot: "/srv/openclaw-tenants/tnt_alice/sandboxes",
-          identityFile: "~/.ssh/openclaw_aaas_tnt_alice"
+  "agents": {
+    "defaults": {
+      "sandbox": {
+        "mode": "all",
+        "backend": "ssh",
+        "scope": "session",
+        "workspaceAccess": "rw",
+        "ssh": {
+          "target": "tnt_alice@20.41.117.124:22",
+          "workspaceRoot": "/srv/openclaw-tenants/tnt_alice/sandboxes",
+          "strictHostKeyChecking": true,
+          "updateHostKeys": true,
+          "identityFile": "~/.ssh/openclaw_aaas_tnt_alice",
+          "knownHostsFile": "~/.ssh/known_hosts"
         }
       }
     }
@@ -249,43 +385,158 @@ OpenClaw 연동을 확인하려면 사용자별 SSH Key와 OpenClaw 설정이 �
 }
 ```
 
-Alice 사용자는 `tnt_alice` 계정과 Alice Workspace를 사용하고, Bob 사용자는 `tnt_bob` 계정과 Bob Workspace를 사용한다. 각 Tenant 디렉터리는 Linux 권한으로 분리되어 있으므로 다른 사용자의 Workspace에 접근하면 `Permission denied`가 발생해야 한다.
+Bob 설정:
 
-### 3. 테스트 확인 방법
+```json
+{
+  "agents": {
+    "defaults": {
+      "sandbox": {
+        "mode": "all",
+        "backend": "ssh",
+        "scope": "session",
+        "workspaceAccess": "rw",
+        "ssh": {
+          "target": "tnt_bob@20.41.117.124:22",
+          "workspaceRoot": "/srv/openclaw-tenants/tnt_bob/sandboxes",
+          "strictHostKeyChecking": true,
+          "updateHostKeys": true,
+          "identityFile": "~/.ssh/openclaw_aaas_tnt_bob",
+          "knownHostsFile": "~/.ssh/known_hosts"
+        }
+      }
+    }
+  }
+}
+```
 
-터미널 4개를 열어 각각 아래 명령어를 실행한다.
+PowerShell에서는 위 설정을 각각 `~/.openclaw-alice/openclaw.json`, `~/.openclaw-bob/openclaw.json`에 저장한 뒤 profile을 확인한다.
 
-터미널 1 — Alice OpenClaw Gateway:
-```
-cd external/openclaw
-node openclaw.mjs --profile alice gateway run
-```
+```powershell
+openclaw --profile alice config file
+openclaw --profile bob config file
 
-터미널 2 — Bob OpenClaw Gateway:
-```
-cd external/openclaw
-node openclaw.mjs --profile bob gateway run
+openclaw --profile alice config set gateway.mode local
+openclaw --profile bob config set gateway.mode local
 ```
 
-터미널 3 — AaaS Gateway:
+사용할 AI 모델 인증 정보는 각 profile에 등록한다.
+
+```powershell
+openclaw --profile alice models auth paste-api-key --provider google
+openclaw --profile alice models fallbacks add google/gemini-2.5-flash
+openclaw --profile alice models set google/gemini-2.5-flash
+openclaw --profile alice models status
 ```
+
+두 사용자의 Gateway를 동시에 실행할 경우 Bob은 Alice와 다른 포트를 사용하도록 설정한다.
+
+```powershell
+$tok = "openclaw-aaas-poc-12345"
+openclaw --profile alice config set gateway.auth.mode token
+openclaw --profile alice config set gateway.auth.token $tok
+openclaw --profile alice config set gateway.remote.token $tok
+
+$tokB = "openclaw-aaas-poc-67890"
+openclaw --profile bob config set gateway.auth.mode token
+openclaw --profile bob config set gateway.auth.token $tokB
+openclaw --profile bob config set gateway.remote.token $tokB
+openclaw --profile bob config set gateway.port 18889
+openclaw --profile bob config set gateway.remote.target ws://127.0.0.1:18889
+```
+
+### 6. OpenClaw SSH Sandbox 실행
+
+터미널을 분리하여 각 사용자 Gateway를 실행한다. Gateway는 계속 켜 둔 상태에서 다른 터미널로 Agent 요청을 보낸다.
+
+Alice Gateway:
+
+```powershell
+openclaw --profile alice gateway run
+```
+
+Bob Gateway:
+
+```powershell
+openclaw --profile bob gateway run
+```
+
+다른 터미널에서 Agent 실행을 테스트한다.
+
+```powershell
+openclaw --profile alice agent --agent main --message "Run pwd and show output"
+openclaw --profile alice agent --agent main --message "Run: echo alice > report.txt"
+openclaw --profile alice tui --local
+```
+
+이 요청은 사용자 PC에서 시작되지만, Shell/File Tool 실행과 결과 파일 생성은 SSH를 통해 Azure VM의 `/srv/openclaw-tenants/tnt_alice/sandboxes` 하위에서 수행된다.
+
+### 7. 실행 결과 검증
+
+운영자는 Azure VM에서 결과 파일이 실제 Tenant Workspace에 생성되었는지 확인한다.
+
+```bash
+ssh -i "C:\Users\siha\Downloads\vm1_key.pem" azureuser@20.41.117.124
+sudo find /srv/openclaw-tenants -name report.txt -print -exec cat {} \;
+```
+
+기대 결과는 다음과 같다.
+
+```text
+/srv/openclaw-tenants/tnt_alice/sandboxes/<session-id>/report.txt
+alice
+```
+
+전체 Workspace 파일과 소유자를 확인하면 Alice와 Bob이 같은 VM과 디스크를 공유하더라도 서로 다른 Linux UID와 Tenant root 아래에서 실행되는 것을 볼 수 있다.
+
+```bash
+sudo find /srv/openclaw-tenants -type f -printf "%p (%U:%G mode=%m)\n"
+```
+
+예시 결과:
+
+```text
+/srv/openclaw-tenants/tnt_alice/sandboxes/openclaw-ssh-agent-main-main-1b41619c/workspace/report.txt (1001:1001 mode=664)
+/srv/openclaw-tenants/tnt_bob/sandboxes/openclaw-ssh-agent-main-main-1b41619c/workspace/english.txt (1002:1002 mode=664)
+```
+
+위 결과에서 session 디렉터리 이름이 같더라도 상위 Tenant 디렉터리가 `chmod 700`으로 보호되므로 Alice는 Bob의 Workspace에 들어갈 수 없고, Bob도 Alice의 Workspace에 들어갈 수 없다.
+
+### 8. AaaS Gateway 및 Dashboard 확인
+
+Dashboard 기반 시연을 함께 사용할 경우 AaaS Gateway를 실행한다. Docker Compose를 사용하지 않고 로컬에서 바로 실행할 때는 Mock LLM도 함께 띄우고, Gateway가 해당 Mock LLM을 바라보도록 환경 변수를 지정한다.
+
+```bash
+cd aaas-gateway/mock-llm
+npm install
+npm run dev
+```
+
+다른 터미널에서 Gateway를 실행한다.
+
+```bash
 cd aaas-gateway
+npm install
+GATEWAY_HOST=127.0.0.1 \
+GATEWAY_PORT=8080 \
+TENANTS_FILE=./tenants.yaml \
+LOGS_DIR=./logs \
+WORKSPACE_ROOT=./workspaces \
+MOCK_LLM_BASE_URL=http://127.0.0.1:9001/v1 \
+BACKEND_MODE=mock \
 npm run dev
 ```
 
-터미널 4 — 웹 Dashboard:
-```
-cd aaas-ui
-npm run dev
+Gateway는 기본적으로 `http://localhost:8080`에서 실행된다. 별도 터미널에서 smoke test를 실행하면 userA/userB 토큰, 허용 Agent, Workspace mapping, 요청 로그가 정상 동작하는지 확인할 수 있다.
+
+```bash
+cd aaas-gateway
+bash scripts/smoke.sh
 ```
 
-브라우저에서 `http://localhost:5173` 접속 후 아래 항목을 점검한다.
+Docker Compose로 `mock-llm`, `openclaw`, `gateway`를 한 번에 띄우는 경우에는 `aaas-gateway/.env` 파일이 필요하다. 시연 환경에서는 최소한 빈 `OPENAI_API_KEY=` 항목을 포함한 `.env`를 두고 실행하면 된다.
 
-**확인해야 할 항목**
-- Dashboard에서 Prompt를 전송했을 때 요청이 전달되는지 확인한다.
-- OpenClaw SSH Sandbox Backend 사용 시 결과 파일이 Azure VM의 Tenant별 Workspace에 생성되는지 확인한다.
-- Alice 계정에서 Bob Workspace에 접근할 수 없고, Bob 계정에서 Alice Workspace에 접근할 수 없는지 확인한다. (OpenClaw SSH Sandbox 기준)
-- 요청 기록과 처리 결과가 Dashboard 또는 로그에서 확인되는지 점검한다.
+웹 Dashboard 환경을 실행하는 경우 브라우저에서 `http://localhost:5173`에 접속하여 Tenant별 요청 수, 성공/실패 횟수, 평균 응답 시간, 처리 결과를 확인한다. Dashboard는 운영자가 Gateway 요청 흐름과 Tenant별 사용량을 한눈에 보기 위한 보조 관리 화면으로 사용된다.
 
 ### 성공 예시 화면 (대시보드)
 ![Dashboard](./dashboard.png)

@@ -247,11 +247,10 @@ async function loadVmStatus() {
     setSelectedRequest(null);
   }
 
-  const selectedUsage = useMemo(() => usage.find((r) => r.tenant === selectedUser), [usage, selectedUser]);
   const totalReq = useMemo(() => usage.reduce((s, r) => s + Number(r.requests || 0), 0), [usage]);
   const totalOk  = useMemo(() => usage.reduce((s, r) => s + Number(r.success  || 0), 0), [usage]);
   const totalErr = useMemo(() => usage.reduce((s, r) => s + Number(r.failed   || 0), 0), [usage]);
-const totalTokens = useMemo(() => usage.reduce((s, r) => s + Number(r.total_tokens || 0), 0), [usage]);
+  const totalTokens = useMemo(() => usage.reduce((s, r) => s + Number(r.total_tokens || 0), 0), [usage]);
 
   const USER_COLORS = ["#3b82f6","#8b5cf6","#ec4899","#f59e0b","#10b981"];
 

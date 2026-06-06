@@ -52,7 +52,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       let toolCallsDetail: string | undefined;
       let responseBody: unknown = null;
       let backend: string | undefined;
-	let tokenCount: number | undefined;
+      let tokenCount: number | undefined;
 
       try {
         const upstream = await proxyToOpenClaw(ctx);
@@ -62,8 +62,8 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         toolCalls = upstream.tool_calls;
         toolCallsDetail = upstream.tool_calls_detail;
         backend = upstream.backend;
-const body = upstream.body as any;
-tokenCount = body?.usage?.total_tokens;
+        const body = upstream.body as { usage?: { total_tokens?: number } };
+        tokenCount = body?.usage?.total_tokens;
       } catch (e) {
         error = e instanceof Error ? e.message : String(e);
         httpStatus = 502;
@@ -74,17 +74,17 @@ tokenCount = body?.usage?.total_tokens;
       const ts = new Date().toISOString();
 
       await writeRequestLog({
-  request_id: ctx.request_id,
-  ts,
-  user_id: user.id,
-  agent_id: ctx.agent_id,
-  workspace_path: user.workspace_path,
-  auth_profile_id: user.auth_profile_id,
-  http_status: httpStatus,
-  duration_ms: durationMs,
-  token_count: tokenCount,
-  error,
-});
+        request_id: ctx.request_id,
+        ts,
+        user_id: user.id,
+        agent_id: ctx.agent_id,
+        workspace_path: user.workspace_path,
+        auth_profile_id: user.auth_profile_id,
+        http_status: httpStatus,
+        duration_ms: durationMs,
+        token_count: tokenCount,
+        error,
+      });
 
       if (containerId) {
         await writeContainerLog({
