@@ -94,7 +94,7 @@ Jones, M. et al., JSON Web Token (JWT), RFC 7519, IETF, 2015
 
 ### 시스템 구조도
 
-![시스템 구조도](./flowchart.svg)
+![시스템 구조도](./flowchart.png)
 
 ### 시스템 개요
 
