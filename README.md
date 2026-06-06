@@ -288,7 +288,7 @@ npm run dev
 - 요청 기록과 처리 결과가 Dashboard 또는 로그에서 확인되는지 점검한다.
 
 ### 성공 예시 화면 (대시보드)
-![Dashboard](./images/dashboard.png)
+![Dashboard](./dashboard.png)
 
 ## H. 개발 결과물의 활용방안 소개
 
